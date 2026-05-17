@@ -1,0 +1,18 @@
+node_modules/
+.env
+.env.local
+.env.production
+dist/
+build/
+.DS_Store
+*.log
+.vite/
+coverage/
+.turbo/
+.vscode/
+.idea/
+
+# Arquivos de bastidor (prompts, skills locais, config Claude Code)
+.claude/
+devspace-*-prompt.md
+salomao-mentor.md

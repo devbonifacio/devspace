@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #252526;
+  --bg-tertiary: #2d2d2d;
+  --bg-active: #37373d;
+  --bg-input: #3c3c3c;
+  --border: #3c3c3c;
+  --border-light: #2d2d2d;
+  --text-primary: #cccccc;
+  --text-secondary: #858585;
+  --text-bright: #ffffff;
+  --text-code: #d4d4d4;
+  --accent: #007acc;
+  --accent-hover: #1177bb;
+  --accent-bg: #0e639c22;
+  --green: #4ec994;
+  --blue: #9cdcfe;
+  --comment: #6a9955;
+  --statusbar: var(--accent);
+  --titlebar: #323233;
+  --yellow: #dcdcaa;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Courier New', Consolas, monospace;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-secondary); }
+::-webkit-scrollbar-thumb { background: #555; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #777; }
+
+input, textarea, button { font-family: 'Courier New', Consolas, monospace; }
+
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+
+/* Modo compacto: reduz padding vertical das bolhas de mensagem */
+[data-compact='true'] .msg-bubble { padding-top: 2px; padding-bottom: 2px; }
+[data-compact='true'] .msg-bubble .msg-meta { margin-bottom: 0; }
