@@ -44,8 +44,11 @@ export default function AuthPage() {
     <div className="h-screen flex items-center justify-center font-mono" style={{ background: 'var(--bg-primary)' }}>
       <div className="w-[360px]">
         <div className="text-center mb-8">
-          <div className="text-3xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
-            {'<'}Dev<span style={{ color: 'var(--accent)' }}>Space</span>{' />'}
+          <div className="text-3xl font-bold mb-1 inline-flex items-center gap-1" style={{ color: 'var(--text-primary)' }}>
+            <span style={{ color: 'var(--green)' }}>&gt;</span>
+            <span>Dev</span>
+            <span style={{ color: 'var(--accent)' }}>Space</span>
+            <span className="ds-cursor" style={{ color: 'var(--green)', marginLeft: -8 }}>_</span>
           </div>
           <p className="text-xs" style={{ color: 'var(--comment)' }}>
             {'// workspace para developers'}

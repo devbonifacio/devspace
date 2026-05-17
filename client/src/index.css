@@ -49,3 +49,12 @@ button:disabled { cursor: not-allowed; }
 /* Modo compacto: reduz padding vertical das bolhas de mensagem */
 [data-compact='true'] .msg-bubble { padding-top: 2px; padding-bottom: 2px; }
 [data-compact='true'] .msg-bubble .msg-meta { margin-bottom: 0; }
+
+/* Cursor de terminal piscando — usado no logo da TitleBar e AuthPage */
+@keyframes ds-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.ds-cursor {
+  animation: ds-blink 1.1s steps(1, end) infinite;
+}
