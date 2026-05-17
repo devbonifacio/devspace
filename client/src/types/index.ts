@@ -37,7 +37,7 @@ export interface Message {
   channel?: string | { _id: string; name: string }
   dm?: string
   content: string
-  type: 'text' | 'code' | 'repo' | 'image'
+  type: 'text' | 'code' | 'repo' | 'image' | 'system'
   repoData?: Repo
   reactions: Reaction[]
   edited: boolean

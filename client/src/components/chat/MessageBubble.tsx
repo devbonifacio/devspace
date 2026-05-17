@@ -16,6 +16,20 @@ const EMOJIS = ['🔥', '✅', '👀', '⭐', '💡', '🚀', '❤️', '😂']
 export default function MessageBubble({ msg }: { msg: Message }) {
   const parsed = parseMessage(msg.content)
   const { user, socket, activeChannel } = useAppStore()
+
+  // Mensagens de sistema (entrou/saiu/etc) — render compacto centralizado
+  if (msg.type === 'system') {
+    return (
+      <div className="flex items-center justify-center py-1 px-4 select-none">
+        <div className="flex items-center gap-2 text-[11px] font-mono" style={{ color: 'var(--comment)' }}>
+          <span className="h-px flex-1 min-w-8" style={{ background: 'var(--border)' }} />
+          <span>// {msg.content}</span>
+          <span className="h-px flex-1 min-w-8" style={{ background: 'var(--border)' }} />
+        </div>
+      </div>
+    )
+  }
+
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(msg.content)
   const [showAllEmojis, setShowAllEmojis] = useState(false)

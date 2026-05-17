@@ -76,6 +76,25 @@ router.post('/join', protect, async (req, res) => {
     await User.findByIdAndUpdate(req.user._id, { $addToSet: { groups: group._id } })
 
     const populated = await populateGroup(Group.findById(group._id))
+
+    // Broadcast: avisa membros existentes que houve mudança + posta system msg no canal geral
+    const io = req.app.get('io')
+    if (io) {
+      io.to(`group:${group._id}`).emit('group-updated', populated)
+
+      const geral = populated.channels?.find(c => c.name === 'geral') || populated.channels?.[0]
+      if (geral) {
+        const sysMsg = await Message.create({
+          author: req.user._id,
+          channel: geral._id,
+          content: `@${req.user.username} entrou no grupo`,
+          type: 'system'
+        })
+        const pop = await sysMsg.populate('author', 'username role avatar status')
+        io.to(`channel:${geral._id}`).emit('new-message', pop)
+      }
+    }
+
     res.json(populated)
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -163,6 +182,25 @@ router.post('/:id/leave', protect, async (req, res) => {
     await group.save()
 
     await User.findByIdAndUpdate(req.user._id, { $pull: { groups: group._id } })
+
+    // Broadcast pra membros que ficaram + system msg no geral
+    const io = req.app.get('io')
+    if (io) {
+      const populated = await populateGroup(Group.findById(group._id))
+      io.to(`group:${group._id}`).emit('group-updated', populated)
+
+      const geral = populated.channels?.find(c => c.name === 'geral') || populated.channels?.[0]
+      if (geral) {
+        const sysMsg = await Message.create({
+          author: req.user._id,
+          channel: geral._id,
+          content: `@${req.user.username} saiu do grupo`,
+          type: 'system'
+        })
+        const pop = await sysMsg.populate('author', 'username role avatar status')
+        io.to(`channel:${geral._id}`).emit('new-message', pop)
+      }
+    }
 
     res.json({ ok: true })
   } catch (err) {

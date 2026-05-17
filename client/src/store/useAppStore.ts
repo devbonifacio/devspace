@@ -241,6 +241,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
     socket.on('user-status', ({ userId, status }) => get().setUserStatus(userId, status))
     socket.on('message-reacted', (msg: Message) => get().updateMessageReaction(msg))
 
+    socket.on('group-updated', (group: any) => {
+      // Atualiza lista de grupos e o activeGroup (se for esse) sem trocar o channel ativo
+      const { user, activeGroup } = get()
+      get().updateGroup(group)
+      // Se eu fui removido (kick futuro) ou não estou mais nos members, limpa o ativo
+      const stillMember = group.members?.some((m: any) => m._id === user?._id || m === user?._id)
+      if (activeGroup?._id === group._id && !stillMember) {
+        get().removeGroup(group._id)
+      }
+    })
+
     socket.on('user-typing', ({ username, channelId }) => {
       get().setTyping(channelId, username)
     })

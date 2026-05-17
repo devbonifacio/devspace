@@ -5,7 +5,7 @@ const messageSchema = new mongoose.Schema({
   channel:  { type: mongoose.Schema.Types.ObjectId, ref: 'Channel' },
   dm:       { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // pra DM
   content:  { type: String, required: true, maxLength: 4000 },
-  type:     { type: String, enum: ['text', 'code', 'repo', 'image'], default: 'text' },
+  type:     { type: String, enum: ['text', 'code', 'repo', 'image', 'system'], default: 'text' },
   // metadata pro repo card
   repoData: {
     name: String, url: String, description: String,
