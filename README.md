@@ -243,4 +243,4 @@ Render reinicia → app pronto. 🎉
 
 ---
 
-🤖 Construído com Salomão (Claude Code mentor skill).
+Construido Por Bonifácio Silva :) ❤️👨🏽‍💻
