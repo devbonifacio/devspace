@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { MessageCircle, Search, GitBranch, Bell, UserCircle, Settings, LogOut } from 'lucide-react'
+import { MessageCircle, Search, GitBranch, Bell, Bookmark, UserCircle, Settings, LogOut } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import UserProfileModal from '../modals/UserProfileModal'
 import SettingsModal from '../modals/SettingsModal'
 
-export type View = 'groups' | 'search' | 'repos' | 'notifications'
+export type View = 'groups' | 'search' | 'repos' | 'notifications' | 'bookmarks'
 
 interface ActivityBarProps {
   activeView: View
@@ -15,6 +15,7 @@ const TOP_ITEMS: { id: View; icon: any; label: string }[] = [
   { id: 'groups', icon: MessageCircle, label: 'Grupos e Canais' },
   { id: 'search', icon: Search, label: 'Buscar' },
   { id: 'repos', icon: GitBranch, label: 'Repositórios do Grupo' },
+  { id: 'bookmarks', icon: Bookmark, label: 'Bookmarks' },
   { id: 'notifications', icon: Bell, label: 'Notificações' },
 ]
 

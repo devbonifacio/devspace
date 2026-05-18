@@ -1,4 +1,5 @@
-import { Bell, MessageCircle, Mail, Trash2, CheckCheck } from 'lucide-react'
+import { useState, useMemo } from 'react'
+import { Bell, MessageCircle, Mail, Trash2, CheckCheck, AtSign } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
@@ -6,13 +7,35 @@ import { ptBR } from 'date-fns/locale'
 const ICONS = {
   message: MessageCircle,
   dm: Mail,
-  mention: Bell,
+  mention: AtSign,
   system: Bell,
 }
 
+type Filter = 'all' | 'mention' | 'dm' | 'message'
+
+const FILTERS: { id: Filter; label: string }[] = [
+  { id: 'all', label: 'tudo' },
+  { id: 'mention', label: '@menções' },
+  { id: 'dm', label: 'DMs' },
+  { id: 'message', label: 'canais' },
+]
+
 export default function NotificationsView() {
   const { notifications, markAllNotificationsRead, clearNotifications } = useAppStore()
+  const [filter, setFilter] = useState<Filter>('all')
+
+  const filtered = useMemo(
+    () => filter === 'all' ? notifications : notifications.filter(n => n.type === filter),
+    [notifications, filter]
+  )
+
   const unread = notifications.filter(n => !n.read).length
+  const counts = useMemo(() => ({
+    all: notifications.length,
+    mention: notifications.filter(n => n.type === 'mention').length,
+    dm: notifications.filter(n => n.type === 'dm').length,
+    message: notifications.filter(n => n.type === 'message').length,
+  }), [notifications])
 
   return (
     <div
@@ -45,24 +68,55 @@ export default function NotificationsView() {
         </div>
       </div>
 
+      <div className="flex gap-0.5 p-1.5" style={{ borderBottom: '1px solid var(--border)' }}>
+        {FILTERS.map(f => {
+          const isActive = filter === f.id
+          const count = counts[f.id]
+          return (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className="flex-1 text-[10px] font-mono px-1.5 py-1 rounded transition-colors"
+              style={{
+                background: isActive ? 'var(--accent-bg)' : 'transparent',
+                color: isActive ? 'var(--blue)' : 'var(--text-secondary)',
+                border: `1px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
+              }}
+            >
+              {f.label} {count > 0 && <span style={{ opacity: 0.7 }}>({count})</span>}
+            </button>
+          )
+        })}
+      </div>
+
       <div className="flex-1 overflow-y-auto">
-        {notifications.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="text-center py-10 px-3 font-mono">
             <Bell size={28} style={{ color: 'var(--text-secondary)', margin: '0 auto 8px' }} />
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>sem notificações</p>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {filter === 'all' ? 'sem notificações' : `sem notificações de ${FILTERS.find(f => f.id === filter)?.label}`}
+            </p>
             <p className="text-[10px] mt-1" style={{ color: 'var(--comment)' }}>// fica em silêncio até algo acontecer</p>
           </div>
         ) : (
-          notifications.map(n => {
+          filtered.map(n => {
             const Icon = ICONS[n.type] || Bell
+            const isMention = n.type === 'mention'
             return (
               <div
                 key={n.id}
                 className="px-3 py-2 transition-colors hover:bg-[var(--bg-tertiary)]"
-                style={{ borderBottom: '1px solid var(--border-light)' }}
+                style={{
+                  borderBottom: '1px solid var(--border-light)',
+                  borderLeft: isMention && !n.read ? '2px solid var(--accent)' : undefined,
+                  background: isMention && !n.read ? 'var(--accent-bg)' : undefined,
+                }}
               >
                 <div className="flex items-start gap-2">
-                  <Icon size={12} style={{ color: n.read ? 'var(--text-secondary)' : 'var(--accent)', marginTop: 3 }} />
+                  <Icon size={12} style={{
+                    color: isMention ? 'var(--accent)' : (n.read ? 'var(--text-secondary)' : 'var(--accent)'),
+                    marginTop: 3
+                  }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline gap-2">
                       <span className="text-xs font-mono font-medium truncate" style={{ color: n.read ? 'var(--text-secondary)' : 'var(--text-primary)' }}>

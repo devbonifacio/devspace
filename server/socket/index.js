@@ -1,5 +1,41 @@
 import Message from '../models/Message.js'
 import User from '../models/User.js'
+import Channel from '../models/Channel.js'
+
+// Extrai @usernames únicos de um conteúdo
+const extractMentions = (text) => {
+  const matches = text.match(/@(\w+)/g) || []
+  return [...new Set(matches.map(m => m.slice(1).toLowerCase()))]
+}
+
+// Notifica usuários mencionados (exceto o próprio autor)
+const notifyMentions = async (io, populated, authorId, channelId) => {
+  try {
+    const usernames = extractMentions(populated.content)
+    if (usernames.length === 0) return
+
+    const users = await User.find({
+      username: { $in: usernames.map(u => new RegExp(`^${u}$`, 'i')) }
+    }).select('_id')
+
+    // Pega o nome do canal pra exibir na notif
+    let channelName = ''
+    if (channelId) {
+      const ch = await Channel.findById(channelId).select('name')
+      channelName = ch?.name || ''
+    }
+
+    for (const u of users) {
+      if (u._id.toString() === authorId.toString()) continue
+      io.to(`user:${u._id}`).emit('you-were-mentioned', {
+        message: populated,
+        channelName,
+      })
+    }
+  } catch (err) {
+    console.error('notifyMentions:', err.message)
+  }
+}
 
 export const setupSocket = (io) => {
   const onlineUsers = new Map() // userId → Set<socketId>
@@ -46,6 +82,7 @@ export const setupSocket = (io) => {
           .populate('author', 'username role avatar status')
           .populate({ path: 'replyTo', populate: { path: 'author', select: 'username avatar role' } })
         io.to(`channel:${data.channelId}`).emit('new-message', populated)
+        notifyMentions(io, populated, data.authorId, data.channelId)
       } catch (err) {
         socket.emit('error', { message: err.message })
       }

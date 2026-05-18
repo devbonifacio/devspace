@@ -8,6 +8,7 @@ import ChatArea from '../chat/ChatArea'
 import SearchView from '../views/SearchView'
 import ReposView from '../views/ReposView'
 import NotificationsView from '../views/NotificationsView'
+import BookmarksView from '../views/BookmarksView'
 import { useAppStore } from '../../store/useAppStore'
 import { useSettingsStore, playNotificationSound } from '../../store/useSettingsStore'
 import { authService } from '../../services/auth.service'
@@ -115,6 +116,7 @@ export default function AppShell() {
     if (activeView === 'search') return <SearchView />
     if (activeView === 'repos') return <ReposView />
     if (activeView === 'notifications') return <NotificationsView />
+    if (activeView === 'bookmarks') return <BookmarksView />
     return <Sidebar />
   }
 

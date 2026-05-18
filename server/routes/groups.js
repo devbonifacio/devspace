@@ -208,6 +208,75 @@ router.post('/:id/leave', protect, async (req, res) => {
   }
 })
 
+// PATCH /api/groups/:id/permissions — atualiza flags de permissão (só admin/owner)
+router.patch('/:id/permissions', protect, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id)
+    if (!group) return res.status(404).json({ error: 'Grupo não encontrado' })
+    if (!isAdmin(group, req.user._id)) {
+      return res.status(403).json({ error: 'Apenas administradores podem alterar permissões' })
+    }
+
+    const allowed = ['createChannel', 'pinMessage', 'shareRepo', 'inviteMembers']
+    const updates = {}
+    for (const k of allowed) {
+      const v = req.body?.[k]
+      if (v === 'all' || v === 'admins') updates[`permissions.${k}`] = v
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'Nenhuma permissão válida no body' })
+    }
+
+    await Group.findByIdAndUpdate(req.params.id, { $set: updates })
+    const populated = await populateGroup(Group.findById(group._id))
+
+    const io = req.app.get('io')
+    if (io) io.to(`group:${group._id}`).emit('group-updated', populated)
+
+    res.json(populated)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// DELETE /api/groups/:id/members/:userId — kick (só admin pode, não kicka o owner)
+router.delete('/:id/members/:userId', protect, async (req, res) => {
+  try {
+    const group = await Group.findById(req.params.id)
+    if (!group) return res.status(404).json({ error: 'Grupo não encontrado' })
+    if (!isAdmin(group, req.user._id)) {
+      return res.status(403).json({ error: 'Apenas administradores podem remover membros' })
+    }
+    if (group.owner?.toString() === req.params.userId) {
+      return res.status(400).json({ error: 'Owner não pode ser removido' })
+    }
+    if (req.params.userId === req.user._id.toString()) {
+      return res.status(400).json({ error: 'Use a rota /leave para sair do grupo' })
+    }
+
+    const wasMember = group.members.some(m => m.toString() === req.params.userId)
+    if (!wasMember) return res.status(404).json({ error: 'Usuário não é membro' })
+
+    group.members = group.members.filter(m => m.toString() !== req.params.userId)
+    group.admins = (group.admins || []).filter(a => a.toString() !== req.params.userId)
+    await group.save()
+
+    await User.findByIdAndUpdate(req.params.userId, { $pull: { groups: group._id } })
+
+    const io = req.app.get('io')
+    if (io) {
+      const populated = await populateGroup(Group.findById(group._id))
+      io.to(`group:${group._id}`).emit('group-updated', populated)
+      // Avisa o user removido pra atualizar a UI dele
+      io.to(`user:${req.params.userId}`).emit('group-kicked', { groupId: group._id.toString() })
+    }
+
+    res.json({ ok: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // DELETE /api/groups/:id/admins/:userId — remove admin (owner não pode ser removido)
 router.delete('/:id/admins/:userId', protect, async (req, res) => {
   try {

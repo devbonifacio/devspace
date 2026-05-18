@@ -1,9 +1,16 @@
 import { useState } from 'react'
-import { X, Trash2, Shield, ShieldOff, Crown, AlertTriangle, LogOut } from 'lucide-react'
+import { X, Trash2, Shield, ShieldOff, Crown, AlertTriangle, LogOut, UserMinus } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import { groupService } from '../../services/group.service'
 import Avatar from '../ui/Avatar'
-import type { User } from '../../types'
+import type { User, GroupPermissions, PermissionScope } from '../../types'
+
+const PERM_LABELS: Record<keyof GroupPermissions, string> = {
+  createChannel: 'Criar canais',
+  pinMessage: 'Fixar mensagens',
+  shareRepo: 'Adicionar repositórios ao grupo',
+  inviteMembers: 'Convidar novos membros',
+}
 
 export default function GroupSettingsModal({ onClose }: { onClose: () => void }) {
   const { activeGroup, user, updateGroup, removeGroup } = useAppStore()
@@ -47,6 +54,35 @@ export default function GroupSettingsModal({ onClose }: { onClose: () => void })
       onClose()
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao apagar grupo')
+      setBusy(false)
+    }
+  }
+
+  const handleKick = async (member: User) => {
+    if (!iAmAdmin || busy) return
+    if (!confirm(`Remover @${member.username} do grupo?`)) return
+    setBusy(true)
+    setError('')
+    try {
+      await groupService.kick(activeGroup._id, member._id)
+      // O group-updated socket vai atualizar o estado
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao remover membro')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const togglePerm = async (key: keyof GroupPermissions, value: PermissionScope) => {
+    if (!iAmAdmin || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      const updated = await groupService.updatePermissions(activeGroup._id, { [key]: value })
+      updateGroup(updated)
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao atualizar permissão')
+    } finally {
       setBusy(false)
     }
   }
@@ -119,20 +155,67 @@ export default function GroupSettingsModal({ onClose }: { onClose: () => void })
                       </span>
                     )}
                     {canToggle && (
-                      <button
-                        onClick={() => toggleAdmin(m)}
-                        disabled={busy}
-                        title={memberIsAdmin ? 'remover admin' : 'promover a admin'}
-                        className="text-[var(--text-secondary)] hover:text-[var(--blue)] transition-colors disabled:opacity-30"
-                      >
-                        {memberIsAdmin ? <ShieldOff size={14} /> : <Shield size={14} />}
-                      </button>
+                      <>
+                        <button
+                          onClick={() => toggleAdmin(m)}
+                          disabled={busy}
+                          title={memberIsAdmin ? 'remover admin' : 'promover a admin'}
+                          className="text-[var(--text-secondary)] hover:text-[var(--blue)] transition-colors disabled:opacity-30"
+                        >
+                          {memberIsAdmin ? <ShieldOff size={14} /> : <Shield size={14} />}
+                        </button>
+                        <button
+                          onClick={() => handleKick(m)}
+                          disabled={busy}
+                          title="remover do grupo"
+                          className="text-[var(--text-secondary)] hover:text-red-400 transition-colors disabled:opacity-30"
+                        >
+                          <UserMinus size={14} />
+                        </button>
+                      </>
                     )}
                   </div>
                 )
               })}
             </div>
           </div>
+
+          {iAmAdmin && (
+            <div className="pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+              <label className="text-[11px] font-mono mb-2 block uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
+                permissões
+              </label>
+              <div className="space-y-1.5">
+                {(Object.keys(PERM_LABELS) as Array<keyof GroupPermissions>).map(key => {
+                  const current: PermissionScope = activeGroup.permissions?.[key] ?? (key === 'pinMessage' ? 'admins' : 'all')
+                  return (
+                    <div key={key} className="flex items-center gap-2 px-2 py-1.5 rounded"
+                      style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+                      <span className="flex-1 text-xs font-mono" style={{ color: 'var(--text-primary)' }}>
+                        {PERM_LABELS[key]}
+                      </span>
+                      <div className="flex rounded overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                        {(['all', 'admins'] as PermissionScope[]).map(v => (
+                          <button
+                            key={v}
+                            onClick={() => togglePerm(key, v)}
+                            disabled={busy || current === v}
+                            className="text-[10px] font-mono px-2 py-0.5 transition-colors disabled:cursor-default"
+                            style={{
+                              background: current === v ? 'var(--accent-bg)' : 'transparent',
+                              color: current === v ? 'var(--blue)' : 'var(--text-secondary)',
+                            }}
+                          >
+                            {v === 'all' ? 'todos' : 'admins'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {error && <p className="text-xs font-mono" style={{ color: '#f48771' }}>// {error}</p>}
 

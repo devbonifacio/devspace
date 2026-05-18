@@ -29,6 +29,13 @@ router.post('/', protect, async (req, res) => {
     const isMember = group.members.some(m => m.equals(req.user._id))
     if (!isMember) return res.status(403).json({ error: 'Sem permissão' })
 
+    const perm = group.permissions?.createChannel || 'all'
+    if (perm === 'admins') {
+      const isAdmin = group.owner?.equals(req.user._id) ||
+                      (group.admins || []).some(a => a.equals(req.user._id))
+      if (!isAdmin) return res.status(403).json({ error: 'Só admins podem criar canais neste grupo' })
+    }
+
     const channel = await Channel.create({
       name: name.trim().toLowerCase().replace(/\s+/g, '-'),
       group: groupId,

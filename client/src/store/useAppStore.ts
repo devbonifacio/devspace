@@ -262,7 +262,26 @@ export const useAppStore = create<AppStore>((set, get) => ({
     socket.on('message-deleted', (data: { _id: string }) => get().removeMessage(data._id))
     socket.on('user-status', ({ userId, status }) => get().setUserStatus(userId, status))
     socket.on('user-custom-status', ({ userId, customStatus }) => get().setCustomStatus(userId, customStatus))
+
+    socket.on('you-were-mentioned', ({ message: msg, channelName }: { message: Message; channelName: string }) => {
+      get().pushNotification({
+        type: 'mention',
+        title: `@menção em #${channelName} · ${msg.author.username}`,
+        body: msg.content.slice(0, 120),
+        meta: { channelId: typeof msg.channel === 'object' ? msg.channel?._id : msg.channel, messageId: msg._id }
+      })
+    })
     socket.on('message-reacted', (msg: Message) => get().updateMessageReaction(msg))
+
+    socket.on('group-kicked', ({ groupId }: { groupId: string }) => {
+      get().removeGroup(groupId)
+      get().pushNotification({
+        type: 'system',
+        title: 'Removido de um grupo',
+        body: 'Um administrador te removeu do grupo.',
+        meta: { groupId }
+      })
+    })
 
     socket.on('group-updated', (group: any) => {
       // Atualiza lista de grupos e o activeGroup (se for esse) sem trocar o channel ativo

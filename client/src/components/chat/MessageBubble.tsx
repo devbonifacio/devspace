@@ -5,13 +5,14 @@ import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import {
   Edit2, ExternalLink, GitFork, Star, Trash2, X, Check, Smile,
-  Reply, MessageSquare, Pin, PinOff,
+  Reply, MessageSquare, Pin, PinOff, Bookmark, BookmarkCheck,
 } from 'lucide-react'
 import { parseMessage } from '../../utils/parseMessage'
 import { renderMarkdown, hasMention } from '../../utils/markdown'
 import Avatar from '../ui/Avatar'
 import { useAppStore } from '../../store/useAppStore'
 import { messageService } from '../../services/message.service'
+import { bookmarkService } from '../../services/bookmark.service'
 import type { Message, Repo } from '../../types'
 
 const EMOJIS = ['🔥', '✅', '👀', '⭐', '💡', '🚀', '❤️', '😂']
@@ -27,7 +28,15 @@ export default function MessageBubble({ msg, insideThread = false }: Props) {
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(msg.content)
   const [showAllEmojis, setShowAllEmojis] = useState(false)
+  const [bookmarked, setBookmarked] = useState(false)
   const editRef = useRef<HTMLTextAreaElement>(null)
+
+  // Verifica se essa msg está bookmarkada (lazy: só ao montar)
+  useEffect(() => {
+    if (msg.type === 'system') return
+    bookmarkService.check(msg._id).then(r => setBookmarked(r.bookmarked)).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [msg._id])
 
   useEffect(() => {
     if (editing && editRef.current) {
@@ -90,6 +99,18 @@ export default function MessageBubble({ msg, insideThread = false }: Props) {
       await messageService.togglePin(msg._id)
     } catch (err: any) {
       alert(err.response?.data?.error || 'Erro ao fixar')
+    }
+  }
+
+  const handleToggleBookmark = async () => {
+    const prev = bookmarked
+    setBookmarked(!prev) // otimista
+    try {
+      const r = await bookmarkService.toggle(msg._id)
+      setBookmarked(r.bookmarked)
+    } catch (err: any) {
+      setBookmarked(prev)
+      alert(err.response?.data?.error || 'Erro ao salvar bookmark')
     }
   }
 
@@ -286,6 +307,14 @@ export default function MessageBubble({ msg, insideThread = false }: Props) {
               {msg.pinned ? <PinOff size={12} /> : <Pin size={12} />}
             </button>
           )}
+          <button
+            onClick={handleToggleBookmark}
+            title={bookmarked ? 'remover bookmark' : 'salvar bookmark'}
+            className="w-6 h-6 flex items-center justify-center rounded hover:bg-[var(--bg-tertiary)] transition-colors"
+            style={{ color: bookmarked ? 'var(--accent)' : 'var(--text-secondary)' }}
+          >
+            {bookmarked ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
+          </button>
           {isMine && msg.type !== 'repo' && msg.type !== 'image' && (
             <button
               onClick={() => setEditing(true)}

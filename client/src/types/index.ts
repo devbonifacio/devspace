@@ -17,6 +17,15 @@ export interface User {
   groups: string[]
 }
 
+export type PermissionScope = 'all' | 'admins'
+
+export interface GroupPermissions {
+  createChannel: PermissionScope
+  pinMessage: PermissionScope
+  shareRepo: PermissionScope
+  inviteMembers: PermissionScope
+}
+
 export interface Group {
   _id: string
   name: string
@@ -27,6 +36,7 @@ export interface Group {
   members: User[]
   channels: Channel[]
   repos: Repo[]
+  permissions?: GroupPermissions
 }
 
 export interface Channel {

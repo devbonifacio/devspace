@@ -129,16 +129,23 @@ router.patch('/:id/pin', async (req, res) => {
     const msg = await Message.findById(req.params.id)
     if (!msg) return res.status(404).json({ error: 'Mensagem não encontrada' })
 
-    let canPin = msg.author.equals(req.user._id)
-    if (!canPin && msg.channel) {
+    // Verifica permissão configurada no grupo
+    let canPin = false
+    if (msg.channel) {
       const channel = await Channel.findById(msg.channel).populate('group')
       const group = channel?.group
       if (group) {
-        canPin = group.owner?.equals(req.user._id) ||
-                 (group.admins || []).some(a => a.equals(req.user._id))
+        const isAdmin = group.owner?.equals(req.user._id) ||
+                        (group.admins || []).some(a => a.equals(req.user._id))
+        const isMember = group.members?.some(m => m.equals(req.user._id))
+        const perm = group.permissions?.pinMessage || 'admins'
+        canPin = isAdmin || (perm === 'all' && isMember)
       }
+    } else {
+      // DM: só o autor pode pinar
+      canPin = msg.author.equals(req.user._id)
     }
-    if (!canPin) return res.status(403).json({ error: 'Sem permissão' })
+    if (!canPin) return res.status(403).json({ error: 'Sem permissão para fixar mensagens' })
 
     msg.pinned = !msg.pinned
     msg.pinnedBy = msg.pinned ? req.user._id : null

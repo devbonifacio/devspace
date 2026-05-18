@@ -1,4 +1,5 @@
 import api from './api'
+import type { GroupPermissions } from '../types'
 
 export const groupService = {
   getMyGroups: () => api.get('/api/groups').then(r => r.data),
@@ -14,4 +15,8 @@ export const groupService = {
     api.post(`/api/groups/${groupId}/admins`, { userId }).then(r => r.data),
   removeAdmin: (groupId: string, userId: string) =>
     api.delete(`/api/groups/${groupId}/admins/${userId}`).then(r => r.data),
+  kick: (groupId: string, userId: string) =>
+    api.delete(`/api/groups/${groupId}/members/${userId}`).then(r => r.data),
+  updatePermissions: (groupId: string, patch: Partial<GroupPermissions>) =>
+    api.patch(`/api/groups/${groupId}/permissions`, patch).then(r => r.data),
 }

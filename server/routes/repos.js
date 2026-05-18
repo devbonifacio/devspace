@@ -67,6 +67,13 @@ router.post('/group/:groupId', protect, async (req, res) => {
     const isMember = group.members.some(m => m.equals(req.user._id))
     if (!isMember) return res.status(403).json({ error: 'Sem permissão' })
 
+    const perm = group.permissions?.shareRepo || 'all'
+    if (perm === 'admins') {
+      const isAdmin = group.owner?.equals(req.user._id) ||
+                      (group.admins || []).some(a => a.equals(req.user._id))
+      if (!isAdmin) return res.status(403).json({ error: 'Só admins podem adicionar repositórios neste grupo' })
+    }
+
     const dup = group.repos.find(r => r.url === req.body.url)
     if (dup) return res.status(400).json({ error: 'Repositório já adicionado ao grupo' })
 
