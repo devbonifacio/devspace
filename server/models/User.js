@@ -10,7 +10,12 @@ const userSchema = new mongoose.Schema({
   githubUrl:  { type: String, default: '' },
   role:       { type: String, default: 'dev' }, // dev, senior, admin
   groups:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group' }],
-  status:     { type: String, enum: ['online', 'away', 'offline'], default: 'offline' }
+  status:     { type: String, enum: ['online', 'away', 'offline'], default: 'offline' },
+  customStatus: {
+    emoji: { type: String, default: '' },
+    text:  { type: String, default: '', maxLength: 60 },
+    clearAt: { type: Date, default: null }, // auto-clear futuro (não implementado, mas reservado)
+  }
 }, { timestamps: true })
 
 userSchema.pre('save', async function() {

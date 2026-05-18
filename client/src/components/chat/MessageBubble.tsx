@@ -3,7 +3,10 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { formatDistanceToNow } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { Edit2, ExternalLink, GitFork, Star, Trash2, X, Check, Smile } from 'lucide-react'
+import {
+  Edit2, ExternalLink, GitFork, Star, Trash2, X, Check, Smile,
+  Reply, MessageSquare, Pin, PinOff,
+} from 'lucide-react'
 import { parseMessage } from '../../utils/parseMessage'
 import { renderMarkdown, hasMention } from '../../utils/markdown'
 import Avatar from '../ui/Avatar'
@@ -13,11 +16,28 @@ import type { Message, Repo } from '../../types'
 
 const EMOJIS = ['🔥', '✅', '👀', '⭐', '💡', '🚀', '❤️', '😂']
 
-export default function MessageBubble({ msg }: { msg: Message }) {
-  const parsed = parseMessage(msg.content)
-  const { user, socket, activeChannel } = useAppStore()
+interface Props {
+  msg: Message
+  // Quando renderizado dentro do ThreadPanel, esconde botões de "responder" e "ver thread"
+  insideThread?: boolean
+}
 
-  // Mensagens de sistema (entrou/saiu/etc) — render compacto centralizado
+export default function MessageBubble({ msg, insideThread = false }: Props) {
+  const { user, socket, activeChannel, setReplyingTo, openThread } = useAppStore()
+  const [editing, setEditing] = useState(false)
+  const [editText, setEditText] = useState(msg.content)
+  const [showAllEmojis, setShowAllEmojis] = useState(false)
+  const editRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (editing && editRef.current) {
+      editRef.current.focus()
+      editRef.current.setSelectionRange(editText.length, editText.length)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing])
+
+  // System messages — render minimalista
   if (msg.type === 'system') {
     return (
       <div className="flex items-center justify-center py-1 px-4 select-none">
@@ -30,21 +50,10 @@ export default function MessageBubble({ msg }: { msg: Message }) {
     )
   }
 
-  const [editing, setEditing] = useState(false)
-  const [editText, setEditText] = useState(msg.content)
-  const [showAllEmojis, setShowAllEmojis] = useState(false)
-  const editRef = useRef<HTMLTextAreaElement>(null)
-
+  const parsed = parseMessage(msg.content)
   const isMine = user?._id === msg.author._id
   const mentionsMe = user?.username ? hasMention(msg.content, user.username) : false
-
-  useEffect(() => {
-    if (editing && editRef.current) {
-      editRef.current.focus()
-      editRef.current.setSelectionRange(editText.length, editText.length)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing])
+  const replyParent = typeof msg.replyTo === 'object' && msg.replyTo !== null ? msg.replyTo : null
 
   const handleReact = (emoji: string) => {
     if (!socket || !user) return
@@ -76,14 +85,36 @@ export default function MessageBubble({ msg }: { msg: Message }) {
     }
   }
 
+  const handleTogglePin = async () => {
+    try {
+      await messageService.togglePin(msg._id)
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Erro ao fixar')
+    }
+  }
+
   return (
     <div
       className="msg-bubble flex gap-3 px-4 py-1.5 group hover:bg-[#2a2d2e] transition-colors rounded relative"
       style={mentionsMe ? { borderLeft: '2px solid var(--accent)', background: 'var(--accent-bg)' } : undefined}
     >
-      <Avatar username={msg.author.username} size="md" className="mt-0.5" />
+      <Avatar username={msg.author.username} avatar={msg.author.avatar} size="md" className="mt-0.5" />
 
       <div className="flex-1 min-w-0">
+        {/* Preview da mensagem-pai quando essa é uma resposta */}
+        {replyParent && (
+          <div
+            className="flex items-center gap-1.5 mb-1 text-[11px] font-mono cursor-pointer hover:opacity-80"
+            style={{ color: 'var(--text-secondary)' }}
+            onClick={() => !insideThread && openThread(replyParent._id)}
+            title={insideThread ? '' : 'ver thread'}
+          >
+            <Reply size={10} style={{ transform: 'scaleX(-1)' }} />
+            <span style={{ color: 'var(--blue)' }}>@{replyParent.author?.username || '...'}</span>
+            <span className="truncate max-w-[260px]">{replyParent.content}</span>
+          </div>
+        )}
+
         <div className="msg-meta flex items-baseline gap-2 mb-1">
           <span className="text-sm font-medium font-mono" style={{ color: 'var(--blue)' }}>
             {msg.author.username}
@@ -100,6 +131,11 @@ export default function MessageBubble({ msg }: { msg: Message }) {
           {msg.edited && (
             <span className="text-[10px] font-mono flex items-center gap-0.5" style={{ color: 'var(--text-secondary)' }}>
               <Edit2 size={9} /> editado
+            </span>
+          )}
+          {msg.pinned && (
+            <span className="text-[10px] font-mono flex items-center gap-0.5" style={{ color: 'var(--yellow)' }}>
+              <Pin size={9} /> fixado
             </span>
           )}
         </div>
@@ -138,6 +174,22 @@ export default function MessageBubble({ msg }: { msg: Message }) {
           </div>
         ) : msg.type === 'repo' && msg.repoData ? (
           <RepoCard data={msg.repoData} />
+        ) : msg.type === 'image' && msg.imageData?.url ? (
+          <div className="mt-1">
+            <a href={msg.imageData.url} target="_blank" rel="noreferrer">
+              <img
+                src={msg.imageData.url}
+                alt={msg.content || 'imagem'}
+                className="rounded max-w-md max-h-80 object-contain"
+                style={{ border: '1px solid var(--border)' }}
+              />
+            </a>
+            {msg.content && msg.content !== '[image]' && (
+              <p className="text-xs mt-1 font-mono" style={{ color: 'var(--text-secondary)' }}>
+                {msg.content}
+              </p>
+            )}
+          </div>
         ) : parsed.type === 'code' ? (
           <div className="mt-1 rounded overflow-hidden" style={{ border: '1px solid var(--border)' }}>
             <div
@@ -186,6 +238,18 @@ export default function MessageBubble({ msg }: { msg: Message }) {
             })}
           </div>
         )}
+
+        {/* Indicador "ver thread" — só em mensagens top-level fora do painel da thread */}
+        {!editing && !insideThread && !replyParent && (msg.replyCount ?? 0) > 0 && (
+          <button
+            onClick={() => openThread(msg._id)}
+            className="mt-1.5 flex items-center gap-1.5 text-[11px] font-mono px-2 py-1 rounded transition-colors"
+            style={{ background: 'var(--accent-bg)', color: 'var(--blue)', border: '1px solid #9cdcfe33' }}
+          >
+            <MessageSquare size={11} />
+            {msg.replyCount} {msg.replyCount === 1 ? 'resposta' : 'respostas'} · ver thread
+          </button>
+        )}
       </div>
 
       {/* Ações ao hover (canto superior direito) */}
@@ -202,7 +266,27 @@ export default function MessageBubble({ msg }: { msg: Message }) {
           >
             <Smile size={13} />
           </button>
-          {isMine && msg.type !== 'repo' && (
+          {!insideThread && (
+            <button
+              onClick={() => setReplyingTo(msg)}
+              title="responder"
+              className="w-6 h-6 flex items-center justify-center rounded hover:bg-[var(--bg-tertiary)] transition-colors"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <Reply size={13} />
+            </button>
+          )}
+          {activeChannel && (
+            <button
+              onClick={handleTogglePin}
+              title={msg.pinned ? 'desfixar' : 'fixar mensagem'}
+              className="w-6 h-6 flex items-center justify-center rounded hover:bg-[var(--bg-tertiary)] transition-colors"
+              style={{ color: msg.pinned ? 'var(--yellow)' : 'var(--text-secondary)' }}
+            >
+              {msg.pinned ? <PinOff size={12} /> : <Pin size={12} />}
+            </button>
+          )}
+          {isMine && msg.type !== 'repo' && msg.type !== 'image' && (
             <button
               onClick={() => setEditing(true)}
               title="editar"

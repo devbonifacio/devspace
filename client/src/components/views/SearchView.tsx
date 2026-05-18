@@ -126,7 +126,7 @@ export default function SearchView() {
             onClick={() => setActiveDmUser(u)}
             className="w-full flex items-center gap-3 p-2 rounded transition-colors hover:bg-[var(--bg-tertiary)]"
           >
-            <Avatar username={u.username} size="sm" />
+            <Avatar username={u.username} avatar={u.avatar} size="sm" />
             <div className="flex-1 min-w-0 text-left">
               <div className="text-sm font-mono truncate" style={{ color: 'var(--blue)' }}>{u.username}</div>
               <div className="text-[10px] font-mono truncate" style={{ color: 'var(--text-secondary)' }}>{u.email}</div>

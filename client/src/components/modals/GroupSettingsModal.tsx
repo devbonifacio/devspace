@@ -99,7 +99,7 @@ export default function GroupSettingsModal({ onClose }: { onClose: () => void })
                     className="flex items-center gap-3 px-2 py-1.5 rounded"
                     style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}
                   >
-                    <Avatar username={m.username} size="sm" />
+                    <Avatar username={m.username} avatar={m.avatar} size="sm" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-mono truncate" style={{ color: 'var(--blue)' }}>
                         {m.username}{m._id === meId && ' (você)'}

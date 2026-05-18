@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { io, Socket } from 'socket.io-client'
-import type { User, Group, Channel, Message, Notification } from '../types'
+import type { User, Group, Channel, Message, Notification, CustomStatus } from '../types'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const NOTIF_LIMIT = 50
@@ -17,8 +17,12 @@ interface AppStore {
   messages: Message[]
   hasMoreMessages: boolean
 
+  replyingTo: Message | null
+  threadParentId: string | null  // se != null, o ThreadPanel está aberto pra essa msg
+
   onlineUsers: Set<string>
   typingUsers: Map<string, string[]>
+  customStatuses: Map<string, CustomStatus>
 
   notifications: Notification[]
 
@@ -44,8 +48,12 @@ interface AppStore {
   removeMessage: (msgId: string) => void
   updateMessageReaction: (msg: Message) => void
 
+  setReplyingTo: (msg: Message | null) => void
+  openThread: (parentId: string | null) => void
+
   setOnlineUsers: (users: string[]) => void
   setUserStatus: (userId: string, status: string) => void
+  setCustomStatus: (userId: string, cs: CustomStatus | null) => void
   setTyping: (channelId: string, username: string) => void
   clearTyping: (channelId: string, username: string) => void
 
@@ -66,8 +74,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
   activeDmUser: null,
   messages: [],
   hasMoreMessages: false,
+  replyingTo: null,
+  threadParentId: null,
   onlineUsers: new Set(),
   typingUsers: new Map(),
+  customStatuses: new Map(),
   notifications: [],
   socket: null,
   socketConnected: false,
@@ -112,20 +123,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const { socket, activeGroup } = get()
     if (socket && activeGroup) socket.emit('leave-group', activeGroup._id)
     if (socket && group) socket.emit('join-group', group._id)
-    set({ activeGroup: group, activeChannel: null, activeDmUser: null, messages: [], hasMoreMessages: false })
+    set({ activeGroup: group, activeChannel: null, activeDmUser: null, messages: [], hasMoreMessages: false, replyingTo: null, threadParentId: null })
   },
 
   setActiveChannel: (channel) => {
     const { socket, activeChannel } = get()
     if (socket && activeChannel) socket.emit('leave-channel', activeChannel._id)
     if (socket && channel) socket.emit('join-channel', channel._id)
-    set({ activeChannel: channel, activeDmUser: null, messages: [], hasMoreMessages: false })
+    set({ activeChannel: channel, activeDmUser: null, messages: [], hasMoreMessages: false, replyingTo: null, threadParentId: null })
   },
 
   setActiveDmUser: (user) => {
     const { socket, activeChannel } = get()
     if (socket && activeChannel) socket.emit('leave-channel', activeChannel._id)
-    set({ activeDmUser: user, activeChannel: null, messages: [], hasMoreMessages: false })
+    set({ activeDmUser: user, activeChannel: null, messages: [], hasMoreMessages: false, replyingTo: null, threadParentId: null })
   },
 
   setMessages: (messages, hasMore = false) => set({ messages, hasMoreMessages: hasMore }),
@@ -153,6 +164,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     messages: s.messages.map(m => m._id === msg._id ? { ...m, reactions: msg.reactions } : m)
   })),
 
+  setReplyingTo: (msg) => set({ replyingTo: msg }),
+  openThread: (parentId) => set({ threadParentId: parentId }),
+
   setOnlineUsers: (users) => set({ onlineUsers: new Set(users) }),
 
   setUserStatus: (userId, status) => set(s => {
@@ -160,6 +174,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (status === 'online' || status === 'away') next.add(userId)
     else next.delete(userId)
     return { onlineUsers: next }
+  }),
+
+  setCustomStatus: (userId, cs) => set(s => {
+    const map = new Map(s.customStatuses)
+    if (cs && (cs.emoji || cs.text)) map.set(userId, cs)
+    else map.delete(userId)
+    return { customStatuses: map }
   }),
 
   setTyping: (channelId, username) => set(s => {
@@ -237,8 +258,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
     })
 
     socket.on('message-edited', (msg: Message) => get().updateMessage(msg))
+    socket.on('message-updated', (msg: Message) => get().updateMessage(msg))
     socket.on('message-deleted', (data: { _id: string }) => get().removeMessage(data._id))
     socket.on('user-status', ({ userId, status }) => get().setUserStatus(userId, status))
+    socket.on('user-custom-status', ({ userId, customStatus }) => get().setCustomStatus(userId, customStatus))
     socket.on('message-reacted', (msg: Message) => get().updateMessageReaction(msg))
 
     socket.on('group-updated', (group: any) => {

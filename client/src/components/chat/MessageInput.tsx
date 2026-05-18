@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { GitBranch, Code, Smile, Send, AtSign } from 'lucide-react'
+import { GitBranch, Code, Smile, Send, AtSign, Reply, X, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
+import { uploadService } from '../../services/upload.service'
 
 interface MessageInputProps {
   onShareRepo: () => void
@@ -18,11 +19,63 @@ export default function MessageInput({ onShareRepo }: MessageInputProps) {
   const [isCode, setIsCode] = useState(false)
   const [showEmojis, setShowEmojis] = useState(false)
   const [showMentions, setShowMentions] = useState(false)
-  const { socket, socketConnected, user, activeChannel, activeDmUser, activeGroup } = useAppStore()
+  const { socket, socketConnected, user, activeChannel, activeDmUser, activeGroup, replyingTo, setReplyingTo } = useAppStore()
+  const [uploadingImg, setUploadingImg] = useState(false)
+  const [uploadPct, setUploadPct] = useState(0)
+  const [uploadErr, setUploadErr] = useState('')
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isTyping = useRef(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const emojiBtnRef = useRef<HTMLButtonElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const sendImage = useCallback(async (file: File) => {
+    if (!socket || !socketConnected || !user) return
+    if (!activeChannel && !activeDmUser) return
+    setUploadErr('')
+    setUploadingImg(true)
+    setUploadPct(0)
+    try {
+      const res = await uploadService.upload(file, 'chat', pct => setUploadPct(pct))
+      const payload = {
+        content: '[image]',
+        type: 'image',
+        imageData: { url: res.url, width: res.width, height: res.height, bytes: res.bytes },
+        replyTo: replyingTo?._id,
+      }
+      if (activeChannel) {
+        socket.emit('send-message', { authorId: user._id, channelId: activeChannel._id, ...payload })
+      } else if (activeDmUser) {
+        socket.emit('send-dm', { fromId: user._id, toId: activeDmUser._id, ...payload })
+      }
+      setReplyingTo(null)
+    } catch (err: any) {
+      setUploadErr(err.message || 'Erro no upload')
+    } finally {
+      setUploadingImg(false)
+    }
+  }, [socket, socketConnected, user, activeChannel, activeDmUser, replyingTo, setReplyingTo])
+
+  // Suporte a paste (Ctrl+V de print/imagem)
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (!activeChannel && !activeDmUser) return
+      const items = e.clipboardData?.items
+      if (!items) return
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile()
+          if (file) {
+            e.preventDefault()
+            sendImage(file)
+            break
+          }
+        }
+      }
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [activeChannel, activeDmUser, sendImage])
 
   // Auto-resize do textarea
   useEffect(() => {
@@ -83,13 +136,15 @@ export default function MessageInput({ onShareRepo }: MessageInputProps) {
     }
 
     const finalContent = isCode ? `\`\`\`javascript\n${content}\n\`\`\`` : content
+    const replyTo = replyingTo?._id
 
     if (activeChannel) {
       socket.emit('send-message', {
         authorId: user._id,
         channelId: activeChannel._id,
         content: finalContent,
-        type: isCode ? 'code' : 'text'
+        type: isCode ? 'code' : 'text',
+        replyTo,
       })
       emitStopTyping()
     } else if (activeDmUser) {
@@ -97,7 +152,8 @@ export default function MessageInput({ onShareRepo }: MessageInputProps) {
         fromId: user._id,
         toId: activeDmUser._id,
         content: finalContent,
-        type: isCode ? 'code' : 'text'
+        type: isCode ? 'code' : 'text',
+        replyTo,
       })
     } else {
       return
@@ -107,6 +163,7 @@ export default function MessageInput({ onShareRepo }: MessageInputProps) {
     setIsCode(false)
     setShowEmojis(false)
     setShowMentions(false)
+    setReplyingTo(null)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -147,6 +204,43 @@ export default function MessageInput({ onShareRepo }: MessageInputProps) {
           style={{ background: '#5c1b1b33', color: '#f48771', border: '1px solid #f4877144' }}
         >
           ● sem conexão com o servidor — tentando reconectar...
+        </div>
+      )}
+      {uploadingImg && (
+        <div
+          className="mb-2 flex items-center gap-2 text-[11px] font-mono px-2 py-1 rounded"
+          style={{ background: 'var(--accent-bg)', color: 'var(--blue)', border: '1px solid #9cdcfe33' }}
+        >
+          <Loader2 size={11} className="animate-spin" /> enviando imagem... {uploadPct}%
+        </div>
+      )}
+      {uploadErr && (
+        <div
+          className="mb-2 flex items-center gap-2 text-[11px] font-mono px-2 py-1 rounded"
+          style={{ background: '#5c1b1b33', color: '#f48771', border: '1px solid #f4877144' }}
+        >
+          // {uploadErr}
+          <button onClick={() => setUploadErr('')} className="ml-auto hover:text-white">
+            <X size={11} />
+          </button>
+        </div>
+      )}
+      {replyingTo && (
+        <div
+          className="mb-2 flex items-center gap-2 text-[11px] font-mono px-2 py-1.5 rounded"
+          style={{ background: 'var(--accent-bg)', color: 'var(--text-secondary)', border: '1px solid #9cdcfe33' }}
+        >
+          <Reply size={11} style={{ color: 'var(--blue)' }} />
+          <span>respondendo a</span>
+          <span style={{ color: 'var(--blue)' }}>@{replyingTo.author.username}</span>
+          <span className="truncate flex-1">{replyingTo.content}</span>
+          <button
+            onClick={() => setReplyingTo(null)}
+            title="cancelar"
+            className="hover:text-white transition-colors"
+          >
+            <X size={11} />
+          </button>
         </div>
       )}
       {isCode && (
@@ -199,6 +293,25 @@ export default function MessageInput({ onShareRepo }: MessageInputProps) {
           >
             <Smile size={15} />
           </button>
+          <button
+            title="Enviar imagem"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingImg}
+            className="text-[var(--text-secondary)] hover:text-[var(--blue)] transition-colors disabled:opacity-50"
+          >
+            {uploadingImg ? <Loader2 size={15} className="animate-spin" /> : <ImageIcon size={15} />}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={e => {
+              const f = e.target.files?.[0]
+              if (f) sendImage(f)
+              e.currentTarget.value = ''
+            }}
+          />
           {activeChannel && (
             <button
               title="Compartilhar repositório"

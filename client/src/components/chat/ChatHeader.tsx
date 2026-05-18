@@ -1,5 +1,7 @@
-import { Hash, Lock, Users, Plus } from 'lucide-react'
+import { useState } from 'react'
+import { Hash, Lock, Users, Plus, Pin } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
+import PinnedDropdown from './PinnedDropdown'
 
 interface ChatHeaderProps {
   onShareRepo: () => void
@@ -7,6 +9,7 @@ interface ChatHeaderProps {
 
 export default function ChatHeader({ onShareRepo }: ChatHeaderProps) {
   const { activeChannel, activeDmUser, onlineUsers } = useAppStore()
+  const [showPinned, setShowPinned] = useState(false)
 
   const name = activeChannel ? activeChannel.name : activeDmUser?.username || ''
   const isPrivate = activeChannel?.private
@@ -15,7 +18,7 @@ export default function ChatHeader({ onShareRepo }: ChatHeaderProps) {
 
   return (
     <div
-      className="flex items-center justify-between px-4 py-2.5 flex-shrink-0"
+      className="flex items-center justify-between px-4 py-2.5 flex-shrink-0 relative"
       style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-primary)' }}
     >
       <div className="flex items-center gap-2">
@@ -46,6 +49,20 @@ export default function ChatHeader({ onShareRepo }: ChatHeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        {activeChannel && (
+          <button
+            onClick={() => setShowPinned(v => !v)}
+            title="mensagens fixadas"
+            className="flex items-center justify-center w-7 h-7 rounded transition-colors"
+            style={{
+              color: showPinned ? 'var(--blue)' : 'var(--text-secondary)',
+              background: showPinned ? 'var(--accent-bg)' : 'transparent',
+              border: `1px solid ${showPinned ? 'var(--accent)' : 'var(--border)'}`,
+            }}
+          >
+            <Pin size={12} />
+          </button>
+        )}
         {!isDm && (
           <>
             <button
@@ -66,6 +83,8 @@ export default function ChatHeader({ onShareRepo }: ChatHeaderProps) {
           </>
         )}
       </div>
+
+      <PinnedDropdown open={showPinned} onClose={() => setShowPinned(false)} />
     </div>
   )
 }

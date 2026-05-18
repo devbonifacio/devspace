@@ -15,8 +15,14 @@ export const messageService = {
     const qs = before ? `?before=${before}` : ''
     return api.get(`/api/messages/dm/${userId}${qs}`).then(r => r.data)
   },
+  getThread: (parentId: string): Promise<{ parent: Message; replies: Message[] }> =>
+    api.get(`/api/messages/thread/${parentId}`).then(r => r.data),
+  getPinned: (channelId: string): Promise<Message[]> =>
+    api.get(`/api/messages/pinned/${channelId}`).then(r => r.data),
   edit: (id: string, content: string) =>
     api.patch(`/api/messages/${id}`, { content }).then(r => r.data),
+  togglePin: (id: string) =>
+    api.patch(`/api/messages/${id}/pin`).then(r => r.data),
   remove: (id: string) =>
     api.delete(`/api/messages/${id}`).then(r => r.data),
   search: (groupId: string, q: string) =>

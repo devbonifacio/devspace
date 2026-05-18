@@ -18,6 +18,7 @@ const sanitize = (user) => ({
   bio: user.bio,
   githubUrl: user.githubUrl,
   status: user.status,
+  customStatus: user.customStatus,
   groups: user.groups
 })
 

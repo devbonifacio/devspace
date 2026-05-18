@@ -67,6 +67,33 @@ router.patch('/profile', protect, async (req, res) => {
   }
 })
 
+// PATCH /api/users/custom-status — define emoji + texto livre
+router.patch('/custom-status', protect, async (req, res) => {
+  try {
+    const { emoji = '', text = '' } = req.body
+    if (typeof emoji !== 'string' || typeof text !== 'string') {
+      return res.status(400).json({ error: 'Formato inválido' })
+    }
+    if (text.length > 60) return res.status(400).json({ error: 'Texto deve ter no máximo 60 caracteres' })
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { customStatus: { emoji: emoji.trim().slice(0, 8), text: text.trim() } },
+      { new: true }
+    ).select('-password')
+
+    const io = req.app.get('io')
+    if (io) io.emit('user-custom-status', {
+      userId: req.user._id.toString(),
+      customStatus: user.customStatus
+    })
+
+    res.json(user)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // PATCH /api/users/status — define status manualmente (online, away, offline)
 router.patch('/status', protect, async (req, res) => {
   try {

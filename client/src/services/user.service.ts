@@ -12,4 +12,6 @@ export const userService = {
     api.patch('/api/users/profile', data).then(r => r.data),
   setStatus: (status: 'online' | 'away' | 'offline') =>
     api.patch('/api/users/status', { status }).then(r => r.data),
+  setCustomStatus: (emoji: string, text: string): Promise<User> =>
+    api.patch('/api/users/custom-status', { emoji, text }).then(r => r.data),
 }

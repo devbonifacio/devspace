@@ -1,3 +1,9 @@
+export interface CustomStatus {
+  emoji: string
+  text: string
+  clearAt?: string | null
+}
+
 export interface User {
   _id: string
   username: string
@@ -7,6 +13,7 @@ export interface User {
   githubUrl: string
   role: 'dev' | 'senior' | 'admin'
   status: 'online' | 'away' | 'offline'
+  customStatus?: CustomStatus
   groups: string[]
 }
 
@@ -31,6 +38,13 @@ export interface Channel {
   topic: string
 }
 
+export interface ImageData {
+  url: string
+  width?: number
+  height?: number
+  bytes?: number
+}
+
 export interface Message {
   _id: string
   author: User
@@ -39,7 +53,13 @@ export interface Message {
   content: string
   type: 'text' | 'code' | 'repo' | 'image' | 'system'
   repoData?: Repo
+  imageData?: ImageData
   reactions: Reaction[]
+  replyTo?: Message | string | null
+  replyCount?: number
+  pinned?: boolean
+  pinnedBy?: string | null
+  pinnedAt?: string | null
   edited: boolean
   createdAt: string
   updatedAt: string

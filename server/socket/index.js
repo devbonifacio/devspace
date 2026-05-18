@@ -32,9 +32,19 @@ export const setupSocket = (io) => {
           channel: data.channelId,
           content: data.content,
           type: data.type || 'text',
-          repoData: data.repoData
+          repoData: data.repoData,
+          imageData: data.imageData,
+          replyTo: data.replyTo || null,
         })
-        const populated = await msg.populate('author', 'username role avatar status')
+        // Se é uma reply, incrementa replyCount do pai
+        if (data.replyTo) {
+          await Message.findByIdAndUpdate(data.replyTo, { $inc: { replyCount: 1 } })
+          const parent = await Message.findById(data.replyTo).populate('author', 'username role avatar status')
+          if (parent) io.to(`channel:${data.channelId}`).emit('message-updated', parent)
+        }
+        const populated = await Message.findById(msg._id)
+          .populate('author', 'username role avatar status')
+          .populate({ path: 'replyTo', populate: { path: 'author', select: 'username avatar role' } })
         io.to(`channel:${data.channelId}`).emit('new-message', populated)
       } catch (err) {
         socket.emit('error', { message: err.message })
@@ -47,10 +57,16 @@ export const setupSocket = (io) => {
           author: data.fromId,
           dm: data.toId,
           content: data.content,
-          type: data.type || 'text'
+          type: data.type || 'text',
+          imageData: data.imageData,
+          replyTo: data.replyTo || null,
         })
-        const populated = await msg.populate('author', 'username avatar role status')
-        // Emite pras salas dos dois (todas abas)
+        if (data.replyTo) {
+          await Message.findByIdAndUpdate(data.replyTo, { $inc: { replyCount: 1 } })
+        }
+        const populated = await Message.findById(msg._id)
+          .populate('author', 'username avatar role status')
+          .populate({ path: 'replyTo', populate: { path: 'author', select: 'username avatar role' } })
         io.to(`user:${data.fromId}`).emit('new-dm', populated)
         if (data.toId !== data.fromId) {
           io.to(`user:${data.toId}`).emit('new-dm', populated)

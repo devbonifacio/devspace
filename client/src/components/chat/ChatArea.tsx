@@ -5,17 +5,46 @@ import MessageInput from './MessageInput'
 import ChatHeader from './ChatHeader'
 import TypingIndicator from './TypingIndicator'
 import ShareRepoModal from '../modals/ShareRepoModal'
+import ThreadPanel from './ThreadPanel'
 import { messageService } from '../../services/message.service'
-import { ChevronUp, Loader2 } from 'lucide-react'
+import { uploadService } from '../../services/upload.service'
+import { ChevronUp, Loader2, ImagePlus } from 'lucide-react'
 
 export default function ChatArea() {
   const {
     activeChannel, activeDmUser, messages, hasMoreMessages,
-    setMessages, prependMessages
+    setMessages, prependMessages, socket, socketConnected, user, replyingTo, setReplyingTo,
   } = useAppStore()
   const [showShareRepo, setShowShareRepo] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [initialLoading, setInitialLoading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [dropUploading, setDropUploading] = useState(false)
+
+  const sendDroppedImage = async (file: File) => {
+    if (!socket || !socketConnected || !user) return
+    if (!activeChannel && !activeDmUser) return
+    setDropUploading(true)
+    try {
+      const res = await uploadService.upload(file, 'chat')
+      const payload = {
+        content: '[image]',
+        type: 'image',
+        imageData: { url: res.url, width: res.width, height: res.height, bytes: res.bytes },
+        replyTo: replyingTo?._id,
+      }
+      if (activeChannel) {
+        socket.emit('send-message', { authorId: user._id, channelId: activeChannel._id, ...payload })
+      } else if (activeDmUser) {
+        socket.emit('send-dm', { fromId: user._id, toId: activeDmUser._id, ...payload })
+      }
+      setReplyingTo(null)
+    } catch (err: any) {
+      alert(err.message || 'Erro no upload')
+    } finally {
+      setDropUploading(false)
+    }
+  }
   const scrollContainer = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const lastMsgCount = useRef(0)
@@ -116,7 +145,41 @@ export default function ChatArea() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+    <div className="flex-1 flex overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+    <div
+      className="flex-1 flex flex-col overflow-hidden relative"
+      onDragOver={e => {
+        if (e.dataTransfer.types.includes('Files')) {
+          e.preventDefault()
+          setIsDragging(true)
+        }
+      }}
+      onDragLeave={e => {
+        // Só esconde se realmente saiu do container (não em transições entre filhos)
+        if (e.currentTarget === e.target) setIsDragging(false)
+      }}
+      onDrop={e => {
+        e.preventDefault()
+        setIsDragging(false)
+        const file = Array.from(e.dataTransfer.files).find(f => f.type.startsWith('image/'))
+        if (file) sendDroppedImage(file)
+      }}
+    >
+      {(isDragging || dropUploading) && (
+        <div
+          className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none"
+          style={{ background: 'rgba(0, 122, 204, 0.15)', border: '2px dashed var(--accent)' }}
+        >
+          <div className="flex flex-col items-center gap-2 font-mono" style={{ color: 'var(--accent)' }}>
+            {dropUploading
+              ? <Loader2 size={32} className="animate-spin" />
+              : <ImagePlus size={32} />}
+            <p className="text-sm">
+              {dropUploading ? 'enviando imagem...' : 'solte a imagem aqui pra enviar'}
+            </p>
+          </div>
+        </div>
+      )}
       <ChatHeader onShareRepo={() => setShowShareRepo(true)} />
 
       <div
@@ -163,6 +226,8 @@ export default function ChatArea() {
       <MessageInput onShareRepo={() => setShowShareRepo(true)} />
 
       {showShareRepo && <ShareRepoModal onClose={() => setShowShareRepo(false)} />}
+    </div>
+    <ThreadPanel />
     </div>
   )
 }

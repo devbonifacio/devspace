@@ -9,18 +9,22 @@ router.use(protect)
 
 const PAGE_SIZE = 50
 
-// GET /api/messages/:channelId?before=<msgId> — paginação por cursor
+const populateMsg = (q) => q
+  .populate('author', 'username email avatar role status')
+  .populate({ path: 'replyTo', populate: { path: 'author', select: 'username avatar role' } })
+
+// GET /api/messages/:channelId?before=<msgId> — paginação por cursor (só mensagens top-level)
 router.get('/:channelId', async (req, res) => {
   try {
-    const filter = { channel: req.params.channelId }
+    // Top-level only: replyTo === null. Respostas só aparecem dentro da thread.
+    const filter = { channel: req.params.channelId, replyTo: null }
     if (req.query.before) {
       const ref = await Message.findById(req.query.before).select('createdAt')
       if (ref) filter.createdAt = { $lt: ref.createdAt }
     }
-    const messages = await Message.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(PAGE_SIZE)
-      .populate('author', 'username email avatar role status')
+    const messages = await populateMsg(
+      Message.find(filter).sort({ createdAt: -1 }).limit(PAGE_SIZE)
+    )
     res.json({
       messages: messages.reverse(),
       hasMore: messages.length === PAGE_SIZE
@@ -37,6 +41,7 @@ router.get('/dm/:userId', async (req, res) => {
     const other = req.params.userId
 
     const filter = {
+      replyTo: null,
       $or: [
         { author: me, dm: other },
         { author: other, dm: me }
@@ -47,15 +52,41 @@ router.get('/dm/:userId', async (req, res) => {
       if (ref) filter.createdAt = { $lt: ref.createdAt }
     }
 
-    const messages = await Message.find(filter)
-      .sort({ createdAt: -1 })
-      .limit(PAGE_SIZE)
-      .populate('author', 'username email avatar role status')
+    const messages = await populateMsg(
+      Message.find(filter).sort({ createdAt: -1 }).limit(PAGE_SIZE)
+    )
 
     res.json({
       messages: messages.reverse(),
       hasMore: messages.length === PAGE_SIZE
     })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /api/messages/thread/:parentId — todas respostas de uma mensagem
+router.get('/thread/:parentId', async (req, res) => {
+  try {
+    const parent = await populateMsg(Message.findById(req.params.parentId))
+    if (!parent) return res.status(404).json({ error: 'Mensagem pai não encontrada' })
+
+    const replies = await populateMsg(
+      Message.find({ replyTo: req.params.parentId }).sort({ createdAt: 1 })
+    )
+    res.json({ parent, replies })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /api/messages/pinned/:channelId — mensagens pinadas no canal
+router.get('/pinned/:channelId', async (req, res) => {
+  try {
+    const pinned = await populateMsg(
+      Message.find({ channel: req.params.channelId, pinned: true }).sort({ pinnedAt: -1 })
+    )
+    res.json(pinned)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -76,16 +107,49 @@ router.patch('/:id', async (req, res) => {
     msg.content = content.trim()
     msg.edited = true
     await msg.save()
-    const populated = await msg.populate('author', 'username email avatar role status')
+    const populated = await populateMsg(Message.findById(msg._id))
 
     const io = req.app.get('io')
     if (io && msg.channel) {
       io.to(`channel:${msg.channel}`).emit('message-edited', populated)
     } else if (io && msg.dm) {
-      io.to(`user:${msg.author._id}`).emit('message-edited', populated)
+      io.to(`user:${msg.author}`).emit('message-edited', populated)
       io.to(`user:${msg.dm}`).emit('message-edited', populated)
     }
 
+    res.json(populated)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// PATCH /api/messages/:id/pin — pin/unpin (autor ou admin do grupo)
+router.patch('/:id/pin', async (req, res) => {
+  try {
+    const msg = await Message.findById(req.params.id)
+    if (!msg) return res.status(404).json({ error: 'Mensagem não encontrada' })
+
+    let canPin = msg.author.equals(req.user._id)
+    if (!canPin && msg.channel) {
+      const channel = await Channel.findById(msg.channel).populate('group')
+      const group = channel?.group
+      if (group) {
+        canPin = group.owner?.equals(req.user._id) ||
+                 (group.admins || []).some(a => a.equals(req.user._id))
+      }
+    }
+    if (!canPin) return res.status(403).json({ error: 'Sem permissão' })
+
+    msg.pinned = !msg.pinned
+    msg.pinnedBy = msg.pinned ? req.user._id : null
+    msg.pinnedAt = msg.pinned ? new Date() : null
+    await msg.save()
+    const populated = await populateMsg(Message.findById(msg._id))
+
+    const io = req.app.get('io')
+    if (io && msg.channel) {
+      io.to(`channel:${msg.channel}`).emit('message-updated', populated)
+    }
     res.json(populated)
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -112,11 +176,27 @@ router.delete('/:id', async (req, res) => {
     const channelId = msg.channel
     const dmFrom = msg.author
     const dmTo = msg.dm
+    const parentId = msg.replyTo
     await msg.deleteOne()
+
+    // Se era uma reply, decrementa o contador do pai e emite update
+    if (parentId) {
+      await Message.findByIdAndUpdate(parentId, { $inc: { replyCount: -1 } })
+      const io = req.app.get('io')
+      if (io && channelId) {
+        const parent = await populateMsg(Message.findById(parentId))
+        if (parent) io.to(`channel:${channelId}`).emit('message-updated', parent)
+      }
+    }
+
+    // Se era top-level com replies, apaga as replies em cascata
+    if (!parentId) {
+      await Message.deleteMany({ replyTo: req.params.id })
+    }
 
     const io = req.app.get('io')
     if (io && channelId) {
-      io.to(`channel:${channelId}`).emit('message-deleted', { _id: req.params.id, channel: channelId })
+      io.to(`channel:${channelId}`).emit('message-deleted', { _id: req.params.id, channel: channelId, replyTo: parentId })
     } else if (io && dmTo) {
       io.to(`user:${dmFrom}`).emit('message-deleted', { _id: req.params.id, dm: dmTo })
       io.to(`user:${dmTo}`).emit('message-deleted', { _id: req.params.id, dm: dmFrom })

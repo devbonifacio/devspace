@@ -16,6 +16,12 @@ export default function Sidebar() {
   const [showGroupSettings, setShowGroupSettings] = useState(false)
   const [copied, setCopied] = useState(false)
   const onlineUsers = useAppStore(s => s.onlineUsers)
+  const customStatuses = useAppStore(s => s.customStatuses)
+
+  // Status custom de um membro — primeiro tenta vir do socket (atualizado),
+  // depois do snapshot que veio com o populate do grupo
+  const getCustomStatus = (m: User) =>
+    customStatuses.get(m._id) || m.customStatus
 
   if (!activeGroup) {
     return (
@@ -118,11 +124,14 @@ export default function Sidebar() {
           if (member._id === user?._id) return null
           const isOnline = onlineUsers.has(member._id)
           const isActive = activeDmUser?._id === member._id
+          const cs = getCustomStatus(member)
+          const hasCs = cs && (cs.emoji || cs.text)
 
           return (
             <button
               key={member._id}
               onClick={() => setActiveDmUser(member)}
+              title={hasCs ? `${cs?.emoji} ${cs?.text}` : member.username}
               className={`w-full flex items-center gap-2 px-3 py-1.5 font-mono transition-colors ${
                 isActive
                   ? 'text-[var(--text-bright)] bg-[var(--bg-active)]'
@@ -130,7 +139,8 @@ export default function Sidebar() {
               }`}
             >
               <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isOnline ? 'bg-[var(--green)]' : 'bg-[var(--text-secondary)]'}`} />
-              <span className="text-sm truncate">{member.username}</span>
+              <span className="text-sm truncate flex-1 text-left">{member.username}</span>
+              {cs?.emoji && <span className="text-[11px]">{cs.emoji}</span>}
             </button>
           )
         })}
@@ -140,10 +150,16 @@ export default function Sidebar() {
         className="px-3 py-2 flex items-center gap-2"
         style={{ borderTop: '1px solid var(--border)' }}
       >
-        <Avatar username={user?.username || ''} size="sm" />
+        <Avatar username={user?.username || ''} avatar={user?.avatar} size="sm" />
         <div className="flex-1 min-w-0">
           <div className="text-xs text-[var(--text-primary)] font-mono truncate">{user?.username}</div>
-          <div className="text-[10px] text-[var(--green)] font-mono">● online</div>
+          {user?.customStatus && (user.customStatus.emoji || user.customStatus.text) ? (
+            <div className="text-[10px] font-mono truncate" style={{ color: 'var(--text-secondary)' }}>
+              {user.customStatus.emoji} {user.customStatus.text}
+            </div>
+          ) : (
+            <div className="text-[10px] text-[var(--green)] font-mono">● online</div>
+          )}
         </div>
         <button
           onClick={() => setShowProfile(true)}

@@ -15,20 +15,45 @@ import { groupService } from '../../services/group.service'
 import { userService } from '../../services/user.service'
 import CreateGroupModal from '../modals/CreateGroupModal'
 import JoinGroupModal from '../modals/JoinGroupModal'
+import CommandPalette from '../modals/CommandPalette'
 import { Hash, Plus, LogIn, Loader2 } from 'lucide-react'
 
 export default function AppShell() {
   const [activeView, setActiveView] = useState<View>('groups')
   const [showCreateGroup, setShowCreateGroup] = useState(false)
   const [showJoinGroup, setShowJoinGroup] = useState(false)
+  const [showPalette, setShowPalette] = useState(false)
   const [bootLoading, setBootLoading] = useState(false)
   const navigate = useNavigate()
 
   const {
     user, token, groups, activeGroup, notifications,
+    threadParentId, openThread, replyingTo, setReplyingTo,
     setAuth, setGroups, setActiveGroup, initSocket, updateUser
   } = useAppStore()
   const settings = useSettingsStore()
+
+  // Atalhos globais
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Ctrl+K / Cmd+K abre command palette
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setShowPalette(true)
+        return
+      }
+      // Esc fecha o que estiver aberto (ordem de prioridade)
+      if (e.key === 'Escape') {
+        if (showPalette) { setShowPalette(false); return }
+        if (showCreateGroup) { setShowCreateGroup(false); return }
+        if (showJoinGroup) { setShowJoinGroup(false); return }
+        if (replyingTo) { setReplyingTo(null); return }
+        if (threadParentId) { openThread(null); return }
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [showPalette, showCreateGroup, showJoinGroup, replyingTo, threadParentId, setReplyingTo, openThread])
 
   // Boot: se tem token mas não tem user (ex.: F5), reidrata via /api/auth/me
   useEffect(() => {
@@ -181,6 +206,7 @@ export default function AppShell() {
 
       {showCreateGroup && <CreateGroupModal onClose={() => { setShowCreateGroup(false); loadGroups() }} />}
       {showJoinGroup && <JoinGroupModal onClose={() => { setShowJoinGroup(false); loadGroups() }} />}
+      {showPalette && <CommandPalette onClose={() => setShowPalette(false)} />}
     </div>
   )
 }
