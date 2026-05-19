@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Hash, Lock, Users, Plus, Pin } from 'lucide-react'
+import { Hash, Lock, Users, Plus, Pin, Phone } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
+import { useCallStore } from '../../store/useCallStore'
 import PinnedDropdown from './PinnedDropdown'
 
 interface ChatHeaderProps {
@@ -8,8 +9,18 @@ interface ChatHeaderProps {
 }
 
 export default function ChatHeader({ onShareRepo }: ChatHeaderProps) {
-  const { activeChannel, activeDmUser, onlineUsers } = useAppStore()
+  const { activeChannel, activeDmUser, onlineUsers, user, socket, socketConnected } = useAppStore()
+  const callStatus = useCallStore(s => s.status)
+  const startCall = useCallStore(s => s.startCall)
   const [showPinned, setShowPinned] = useState(false)
+
+  const handleStartCall = () => {
+    if (!socket || !socketConnected || !user || !activeDmUser) return
+    if (callStatus !== 'idle' && callStatus !== 'ended') return
+    startCall(socket, activeDmUser, user)
+  }
+
+  const inCallWithThis = callStatus !== 'idle' && callStatus !== 'ended'
 
   const name = activeChannel ? activeChannel.name : activeDmUser?.username || ''
   const isPrivate = activeChannel?.private
@@ -49,6 +60,21 @@ export default function ChatHeader({ onShareRepo }: ChatHeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        {isDm && (
+          <button
+            onClick={handleStartCall}
+            disabled={inCallWithThis || !socketConnected}
+            title={inCallWithThis ? 'já em chamada' : 'iniciar chamada de voz'}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono rounded transition-colors disabled:opacity-40"
+            style={{
+              background: 'var(--green)',
+              color: '#1e1e1e',
+              border: '1px solid var(--green)',
+            }}
+          >
+            <Phone size={12} /> ligar
+          </button>
+        )}
         {activeChannel && (
           <button
             onClick={() => setShowPinned(v => !v)}

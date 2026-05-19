@@ -64,7 +64,7 @@ export default function SearchView() {
             style={{ color: 'var(--text-primary)' }}
             autoFocus
           />
-        </div>
+        </div> 
 
         <div className="flex gap-1 rounded p-0.5" style={{ background: 'var(--bg-input)' }}>
           {(['messages', 'users'] as const).map(t => (

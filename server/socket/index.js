@@ -153,6 +153,43 @@ export const setupSocket = (io) => {
       } catch {}
     })
 
+    // ============================================================
+    // CHAMADAS DE VOZ (WebRTC signaling — server só relaya, sem dados de audio)
+    // ============================================================
+
+    // Caller envia offer SDP pro callee
+    socket.on('call-user', ({ toId, fromUser, sdp }) => {
+      io.to(`user:${toId}`).emit('call-incoming', {
+        from: fromUser,   // { _id, username, avatar }
+        sdp,
+      })
+    })
+
+    // Callee aceitou e devolve answer SDP
+    socket.on('call-answer', ({ toId, sdp }) => {
+      io.to(`user:${toId}`).emit('call-accepted', { sdp })
+    })
+
+    // Troca de ICE candidates (bidirecional, durante toda a call)
+    socket.on('call-ice-candidate', ({ toId, candidate }) => {
+      io.to(`user:${toId}`).emit('call-ice-candidate', { candidate })
+    })
+
+    // Desligar (qualquer lado pode emitir)
+    socket.on('call-hangup', ({ toId }) => {
+      io.to(`user:${toId}`).emit('call-hangup')
+    })
+
+    // Recusar chamada antes de aceitar
+    socket.on('call-decline', ({ toId }) => {
+      io.to(`user:${toId}`).emit('call-declined')
+    })
+
+    // Callee já está em outra call
+    socket.on('call-busy', ({ toId }) => {
+      io.to(`user:${toId}`).emit('call-busy')
+    })
+
     socket.on('disconnect', async () => {
       const sockets = onlineUsers.get(userId)
       if (!sockets) return

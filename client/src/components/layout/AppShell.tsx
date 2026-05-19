@@ -17,6 +17,8 @@ import { userService } from '../../services/user.service'
 import CreateGroupModal from '../modals/CreateGroupModal'
 import JoinGroupModal from '../modals/JoinGroupModal'
 import CommandPalette from '../modals/CommandPalette'
+import IncomingCallToast from '../call/IncomingCallToast'
+import CallWindow from '../call/CallWindow'
 import { Hash, Plus, LogIn, Loader2 } from 'lucide-react'
 
 export default function AppShell() {
@@ -209,6 +211,10 @@ export default function AppShell() {
       {showCreateGroup && <CreateGroupModal onClose={() => { setShowCreateGroup(false); loadGroups() }} />}
       {showJoinGroup && <JoinGroupModal onClose={() => { setShowJoinGroup(false); loadGroups() }} />}
       {showPalette && <CommandPalette onClose={() => setShowPalette(false)} />}
+
+      {/* Voice call UI — sempre montado, eles se auto-renderizam só quando ativos */}
+      <IncomingCallToast />
+      <CallWindow />
     </div>
   )
 }

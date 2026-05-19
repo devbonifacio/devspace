@@ -58,3 +58,8 @@ button:disabled { cursor: not-allowed; }
 .ds-cursor {
   animation: ds-blink 1.1s steps(1, end) infinite;
 }
+
+@keyframes ds-slide-in {
+  from { transform: translateX(20px); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
