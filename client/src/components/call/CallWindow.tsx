@@ -75,6 +75,9 @@ export default function CallWindow() {
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (!mini) return
+    // Se o clique foi num botão (ou dentro de um), não inicia drag —
+    // deixa o onClick do botão funcionar normal
+    if ((e.target as HTMLElement).closest('button')) return
     dragRef.current.dragging = true
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
     dragRef.current.offX = e.clientX - rect.left
