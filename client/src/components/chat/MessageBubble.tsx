@@ -24,7 +24,7 @@ interface Props {
 }
 
 export default function MessageBubble({ msg, insideThread = false }: Props) {
-  const { user, socket, activeChannel, setReplyingTo, openThread } = useAppStore()
+  const { user, socket, activeChannel, setReplyingTo, openThread, openProfile } = useAppStore()
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(msg.content)
   const [showAllEmojis, setShowAllEmojis] = useState(false)
@@ -119,7 +119,13 @@ export default function MessageBubble({ msg, insideThread = false }: Props) {
       className="msg-bubble flex gap-3 px-4 py-1.5 group hover:bg-[#2a2d2e] transition-colors rounded relative"
       style={mentionsMe ? { borderLeft: '2px solid var(--accent)', background: 'var(--accent-bg)' } : undefined}
     >
-      <Avatar username={msg.author.username} avatar={msg.author.avatar} size="md" className="mt-0.5" />
+      <button
+        onClick={() => openProfile(msg.author._id)}
+        title={`ver perfil de ${msg.author.username}`}
+        className="mt-0.5 flex-shrink-0 transition-transform hover:scale-105"
+      >
+        <Avatar username={msg.author.username} avatar={msg.author.avatar} size="md" />
+      </button>
 
       <div className="flex-1 min-w-0">
         {/* Preview da mensagem-pai quando essa é uma resposta */}
@@ -137,9 +143,13 @@ export default function MessageBubble({ msg, insideThread = false }: Props) {
         )}
 
         <div className="msg-meta flex items-baseline gap-2 mb-1">
-          <span className="text-sm font-medium font-mono" style={{ color: 'var(--blue)' }}>
+          <button
+            onClick={() => openProfile(msg.author._id)}
+            className="text-sm font-medium font-mono hover:underline"
+            style={{ color: 'var(--blue)' }}
+          >
             {msg.author.username}
-          </span>
+          </button>
           <span
             className="text-[10px] px-1.5 py-px rounded font-mono"
             style={{ background: 'var(--accent-bg)', color: 'var(--blue)', border: '1px solid #9cdcfe33' }}

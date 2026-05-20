@@ -36,10 +36,11 @@ router.get('/search', protect, async (req, res) => {
   }
 })
 
-// GET /api/users/:id — perfil público de um usuário
+// GET /api/users/:id — perfil público de um usuário (sem email/senha)
 router.get('/:id', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password')
+    const user = await User.findById(req.params.id)
+      .select('username avatar bio githubUrl role status customStatus createdAt')
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' })
     res.json(user)
   } catch (err) {

@@ -13,7 +13,7 @@ const PERM_LABELS: Record<keyof GroupPermissions, string> = {
 }
 
 export default function GroupSettingsModal({ onClose }: { onClose: () => void }) {
-  const { activeGroup, user, updateGroup, removeGroup } = useAppStore()
+  const { activeGroup, user, updateGroup, removeGroup, openProfile } = useAppStore()
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -135,13 +135,19 @@ export default function GroupSettingsModal({ onClose }: { onClose: () => void })
                     className="flex items-center gap-3 px-2 py-1.5 rounded"
                     style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}
                   >
-                    <Avatar username={m.username} avatar={m.avatar} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-mono truncate" style={{ color: 'var(--blue)' }}>
-                        {m.username}{m._id === meId && ' (você)'}
+                    <button
+                      onClick={() => openProfile(m._id)}
+                      title={`ver perfil de ${m.username}`}
+                      className="flex items-center gap-3 flex-1 min-w-0 text-left transition-opacity hover:opacity-80"
+                    >
+                      <Avatar username={m.username} avatar={m.avatar} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-mono truncate" style={{ color: 'var(--blue)' }}>
+                          {m.username}{m._id === meId && ' (você)'}
+                        </div>
+                        <div className="text-[10px] font-mono" style={{ color: 'var(--text-secondary)' }}>{m.email}</div>
                       </div>
-                      <div className="text-[10px] font-mono" style={{ color: 'var(--text-secondary)' }}>{m.email}</div>
-                    </div>
+                    </button>
                     {memberIsOwner && (
                       <span className="text-[10px] font-mono flex items-center gap-1 px-1.5 py-0.5 rounded"
                         style={{ background: '#3d3b0e', color: 'var(--yellow, #dcdcaa)', border: '1px solid #dcdcaa44' }}>

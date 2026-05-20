@@ -15,6 +15,7 @@ export interface User {
   status: 'online' | 'away' | 'offline'
   customStatus?: CustomStatus
   groups: string[]
+  createdAt?: string
 }
 
 export type PermissionScope = 'all' | 'admins'

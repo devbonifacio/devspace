@@ -17,6 +17,7 @@ import { userService } from '../../services/user.service'
 import CreateGroupModal from '../modals/CreateGroupModal'
 import JoinGroupModal from '../modals/JoinGroupModal'
 import CommandPalette from '../modals/CommandPalette'
+import UserProfileCard from '../modals/UserProfileCard'
 import IncomingCallToast from '../call/IncomingCallToast'
 import CallWindow from '../call/CallWindow'
 import { Hash, Plus, LogIn, Loader2 } from 'lucide-react'
@@ -32,6 +33,7 @@ export default function AppShell() {
   const {
     user, token, groups, activeGroup, notifications,
     threadParentId, openThread, replyingTo, setReplyingTo,
+    viewingProfileId, openProfile,
     setAuth, setGroups, setActiveGroup, initSocket, updateUser
   } = useAppStore()
   const settings = useSettingsStore()
@@ -48,6 +50,7 @@ export default function AppShell() {
       // Esc fecha o que estiver aberto (ordem de prioridade)
       if (e.key === 'Escape') {
         if (showPalette) { setShowPalette(false); return }
+        if (viewingProfileId) { openProfile(null); return }
         if (showCreateGroup) { setShowCreateGroup(false); return }
         if (showJoinGroup) { setShowJoinGroup(false); return }
         if (replyingTo) { setReplyingTo(null); return }
@@ -56,7 +59,7 @@ export default function AppShell() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [showPalette, showCreateGroup, showJoinGroup, replyingTo, threadParentId, setReplyingTo, openThread])
+  }, [showPalette, showCreateGroup, showJoinGroup, replyingTo, threadParentId, viewingProfileId, setReplyingTo, openThread, openProfile])
 
   // Boot: se tem token mas não tem user (ex.: F5), reidrata via /api/auth/me
   useEffect(() => {
@@ -211,6 +214,8 @@ export default function AppShell() {
       {showCreateGroup && <CreateGroupModal onClose={() => { setShowCreateGroup(false); loadGroups() }} />}
       {showJoinGroup && <JoinGroupModal onClose={() => { setShowJoinGroup(false); loadGroups() }} />}
       {showPalette && <CommandPalette onClose={() => setShowPalette(false)} />}
+
+      <UserProfileCard />
 
       {/* Voice call UI — sempre montado, eles se auto-renderizam só quando ativos */}
       <IncomingCallToast />

@@ -20,6 +20,7 @@ interface AppStore {
 
   replyingTo: Message | null
   threadParentId: string | null  // se != null, o ThreadPanel está aberto pra essa msg
+  viewingProfileId: string | null  // se != null, o UserProfileCard está aberto
 
   onlineUsers: Set<string>
   typingUsers: Map<string, string[]>
@@ -51,6 +52,7 @@ interface AppStore {
 
   setReplyingTo: (msg: Message | null) => void
   openThread: (parentId: string | null) => void
+  openProfile: (userId: string | null) => void
 
   setOnlineUsers: (users: string[]) => void
   setUserStatus: (userId: string, status: string) => void
@@ -77,6 +79,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   hasMoreMessages: false,
   replyingTo: null,
   threadParentId: null,
+  viewingProfileId: null,
   onlineUsers: new Set(),
   typingUsers: new Map(),
   customStatuses: new Map(),
@@ -169,6 +172,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setReplyingTo: (msg) => set({ replyingTo: msg }),
   openThread: (parentId) => set({ threadParentId: parentId }),
+  openProfile: (userId) => set({ viewingProfileId: userId }),
 
   setOnlineUsers: (users) => set({ onlineUsers: new Set(users) }),
 
