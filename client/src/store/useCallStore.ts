@@ -302,7 +302,7 @@ export function startRingtone() {
         o.frequency.setValueAtTime(440, now + offset)
         o.frequency.setValueAtTime(480, now + offset + 0.2)
         g.gain.setValueAtTime(0.0001, now + offset)
-        g.gain.exponentialRampToValueAtTime(0.12, now + offset + 0.02)
+        g.gain.exponentialRampToValueAtTime(0.24, now + offset + 0.02)
         g.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.32)
         o.start(now + offset)
         o.stop(now + offset + 0.35)
