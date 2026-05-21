@@ -1,7 +1,8 @@
 import express from 'express'
 import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
-import { protect } from '../middleware/auth.js'
+import { protect, isOwnerEmail } from '../middleware/auth.js'
+import { isBanned, banMessage } from '../utils/ban.js'
 import { validatePassword, validateUsername, validateEmail } from '../utils/validation.js'
 
 const router = express.Router()
@@ -17,9 +18,11 @@ const sanitize = (user) => ({
   avatar: user.avatar,
   bio: user.bio,
   githubUrl: user.githubUrl,
+  banner: user.banner,
   status: user.status,
   customStatus: user.customStatus,
-  groups: user.groups
+  groups: user.groups,
+  isOwner: isOwnerEmail(user.email),
 })
 
 router.post('/register', async (req, res) => {
@@ -74,6 +77,10 @@ router.post('/login', async (req, res) => {
 
     if (!user || !ok) {
       return res.status(401).json({ error: 'Credenciais inválidas' })
+    }
+    // Conta banida não loga
+    if (isBanned(user)) {
+      return res.status(403).json({ error: banMessage(user.ban), code: 'BANNED' })
     }
     res.json({ token: signToken(user._id), user: sanitize(user) })
   } catch (err) {

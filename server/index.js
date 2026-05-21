@@ -14,6 +14,7 @@ import repoRoutes from './routes/repos.js'
 import userRoutes from './routes/users.js'
 import uploadRoutes from './routes/uploads.js'
 import bookmarkRoutes from './routes/bookmarks.js'
+import adminRoutes from './routes/admin.js'
 import { setupSocket } from './socket/index.js'
 
 dotenv.config()
@@ -92,6 +93,7 @@ app.use('/api/repos', repoRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/uploads', uploadRoutes)
 app.use('/api/bookmarks', bookmarkRoutes)
+app.use('/api/admin', adminRoutes)
 
 // 404 das rotas /api/*
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint não encontrado' }))

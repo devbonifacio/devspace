@@ -1,6 +1,7 @@
 import Message from '../models/Message.js'
 import User from '../models/User.js'
 import Channel from '../models/Channel.js'
+import { isBanned } from '../utils/ban.js'
 
 // Extrai @usernames únicos de um conteúdo
 const extractMentions = (text) => {
@@ -43,6 +44,15 @@ export const setupSocket = (io) => {
   io.on('connection', async (socket) => {
     const userId = socket.handshake.auth?.userId
     if (!userId) return
+
+    // Bloqueia conexão de usuário banido
+    try {
+      const u = await User.findById(userId).select('ban')
+      if (u && isBanned(u)) {
+        socket.emit('force-logout', { reason: u.ban?.reason || '' })
+        return socket.disconnect(true)
+      }
+    } catch {}
 
     // Suporta múltiplas abas: cada user pode ter vários sockets
     if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set())

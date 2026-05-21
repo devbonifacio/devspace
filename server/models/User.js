@@ -16,6 +16,13 @@ const userSchema = new mongoose.Schema({
     emoji: { type: String, default: '' },
     text:  { type: String, default: '', maxLength: 60 },
     clearAt: { type: Date, default: null }, // auto-clear futuro (não implementado, mas reservado)
+  },
+  // Banimento / suspensão (gerido pelo painel de moderação)
+  ban: {
+    until:  { type: Date, default: null },   // null = não banido; data futura = banido até
+    reason: { type: String, default: '' },
+    by:     { type: String, default: '' },   // username de quem aplicou
+    at:     { type: Date, default: null },   // quando foi aplicado
   }
 }, { timestamps: true })
 

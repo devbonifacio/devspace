@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { MessageCircle, Search, GitBranch, Bell, Bookmark, UserCircle, Settings, LogOut } from 'lucide-react'
+import { MessageCircle, Search, GitBranch, Bell, Bookmark, UserCircle, Settings, LogOut, Shield } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import UserProfileModal from '../modals/UserProfileModal'
 import SettingsModal from '../modals/SettingsModal'
+import ModerationPanel from '../modals/ModerationPanel'
 
 export type View = 'groups' | 'search' | 'repos' | 'notifications' | 'bookmarks'
 
@@ -20,9 +21,10 @@ const TOP_ITEMS: { id: View; icon: any; label: string }[] = [
 ]
 
 export default function ActivityBar({ activeView, onViewChange }: ActivityBarProps) {
-  const { logout, notifications } = useAppStore()
+  const { logout, notifications, user } = useAppStore()
   const [showProfile, setShowProfile] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showMod, setShowMod] = useState(false)
   const unread = notifications.filter(n => !n.read).length
 
   return (
@@ -55,6 +57,15 @@ export default function ActivityBar({ activeView, onViewChange }: ActivityBarPro
       ))}
 
       <div className="mt-auto flex flex-col gap-1">
+        {user?.isOwner && (
+          <button
+            title="Painel de moderação"
+            onClick={() => setShowMod(true)}
+            className="w-9 h-9 flex items-center justify-center rounded text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+          >
+            <Shield size={20} />
+          </button>
+        )}
         <button
           title="Perfil"
           onClick={() => setShowProfile(true)}
@@ -80,6 +91,7 @@ export default function ActivityBar({ activeView, onViewChange }: ActivityBarPro
 
       {showProfile && <UserProfileModal onClose={() => setShowProfile(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showMod && <ModerationPanel onClose={() => setShowMod(false)} />}
     </div>
   )
 }

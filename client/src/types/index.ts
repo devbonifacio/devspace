@@ -17,6 +17,7 @@ export interface User {
   customStatus?: CustomStatus
   groups: string[]
   createdAt?: string
+  isOwner?: boolean
 }
 
 export type PermissionScope = 'all' | 'admins'

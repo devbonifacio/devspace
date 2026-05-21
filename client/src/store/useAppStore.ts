@@ -304,6 +304,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
       }
     })
 
+    // Banido/expulso por um moderador → derruba a sessão na hora
+    socket.on('force-logout', ({ reason }: { reason?: string }) => {
+      localStorage.setItem('ds_authmsg', reason
+        ? `Você foi removido por um moderador. Motivo: ${reason}`
+        : 'Você foi removido por um moderador.')
+      localStorage.removeItem('ds_token')
+      try { get().socket?.disconnect() } catch {}
+      window.location.href = '/auth'
+    })
+
     socket.on('user-typing', ({ username, channelId }) => {
       get().setTyping(channelId, username)
     })

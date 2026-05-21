@@ -13,8 +13,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   res => res,
   err => {
-    if (err.response?.status === 401) {
+    const status = err.response?.status
+    const data = err.response?.data
+    const banned = status === 403 && data?.code === 'BANNED'
+    if (status === 401 || banned) {
       localStorage.removeItem('ds_token')
+      // Guarda a mensagem de banimento pra AuthPage exibir
+      if (banned && data?.error) localStorage.setItem('ds_authmsg', data.error)
       window.location.href = '/auth'
     }
     return Promise.reject(err)

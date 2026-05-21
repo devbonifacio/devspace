@@ -8,7 +8,12 @@ import { checkPassword, validateUsername, validateEmail } from '../utils/validat
 export default function AuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [form, setForm] = useState({ username: '', email: '', password: '' })
-  const [error, setError] = useState('')
+  const [error, setError] = useState(() => {
+    // Mensagem deixada por um logout forçado (banimento/expulsão)
+    const msg = localStorage.getItem('ds_authmsg')
+    if (msg) { localStorage.removeItem('ds_authmsg'); return msg }
+    return ''
+  })
   const [loading, setLoading] = useState(false)
   const { setAuth } = useAppStore()
   const navigate = useNavigate()
