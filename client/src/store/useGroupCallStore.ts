@@ -80,6 +80,7 @@ export const useGroupCallStore = create<GroupCallStore>((set, get) => ({
     // Alguém entrou depois de mim
     socket.on('voice:peer-joined', async ({ user }: { user: PeerUser }) => {
       ensurePeer(user)
+      playJoinSound()
       // Regra anti-glare: só o menor id inicia o offer
       if (myId && myId < user._id) {
         const pc = createPC(user._id)
@@ -114,6 +115,7 @@ export const useGroupCallStore = create<GroupCallStore>((set, get) => ({
 
     socket.on('voice:peer-left', ({ userId }: { userId: string }) => {
       removePeer(userId)
+      playLeaveSound()
     })
   },
 
@@ -123,6 +125,7 @@ export const useGroupCallStore = create<GroupCallStore>((set, get) => ({
     try {
       const localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
       set({ localStream, joining: false, activeGroupId: groupId, groupName, mini: false })
+      playJoinSound()
       socket.emit('voice:join', {
         groupId,
         user: { _id: me._id, username: me.username, avatar: me.avatar },
@@ -141,6 +144,7 @@ export const useGroupCallStore = create<GroupCallStore>((set, get) => ({
   leaveCall: (socket) => {
     const gid = get().activeGroupId
     if (gid && socket) socket.emit('voice:leave', { groupId: gid })
+    if (gid) playLeaveSound()
     cleanup()
     set({ activeGroupId: null, groupName: '', peers: [], muted: false, mini: false })
   },
@@ -229,6 +233,33 @@ async function flushIce(peerId: string, pc: RTCPeerConnection) {
   for (const c of list) await pc.addIceCandidate(c).catch(() => {})
   pendingIce.delete(peerId)
 }
+
+// Blip sintetizado (sem arquivo de áudio) — sequência curta de notas
+function blip(freqs: number[]) {
+  try {
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext
+    const ctx = new Ctx()
+    let t = ctx.currentTime
+    for (const f of freqs) {
+      const o = ctx.createOscillator()
+      const g = ctx.createGain()
+      o.connect(g); g.connect(ctx.destination)
+      o.type = 'sine'
+      o.frequency.setValueAtTime(f, t)
+      g.gain.setValueAtTime(0.0001, t)
+      g.gain.exponentialRampToValueAtTime(0.16, t + 0.02)
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16)
+      o.start(t)
+      o.stop(t + 0.18)
+      t += 0.12
+    }
+    setTimeout(() => ctx.close().catch(() => {}), 700)
+  } catch { /* áudio indisponível — ignora */ }
+}
+
+// Entrada: notas subindo. Saída: notas descendo.
+export const playJoinSound = () => blip([523.25, 783.99])
+export const playLeaveSound = () => blip([783.99, 523.25])
 
 function cleanup() {
   pcs.forEach(pc => {
