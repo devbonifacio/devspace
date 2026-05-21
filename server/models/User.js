@@ -19,6 +19,9 @@ const userSchema = new mongoose.Schema({
   },
   // Se já recebeu a DM de boas-vindas do bot (evita repetir)
   botWelcomed: { type: Boolean, default: false },
+  // Redefinição de senha — guarda o HASH do token, nunca o token cru
+  resetToken:       { type: String, default: null },
+  resetTokenExpiry: { type: Date, default: null },
   // Banimento / suspensão (gerido pelo painel de moderação)
   ban: {
     until:  { type: Date, default: null },   // null = não banido; data futura = banido até

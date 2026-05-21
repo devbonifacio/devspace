@@ -5,6 +5,7 @@ import { useAppStore } from './store/useAppStore'
 import { useSettingsStore } from './store/useSettingsStore'
 import AuthPage from './pages/AuthPage'
 import AppPage from './pages/AppPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import NotFoundPage from './pages/NotFoundPage'
 import './index.css'
 
@@ -21,6 +22,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <Routes>
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/app" element={
           <ProtectedRoute>
             <AppPage />

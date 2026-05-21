@@ -5,23 +5,49 @@ import { useAppStore } from '../store/useAppStore'
 import { authService } from '../services/auth.service'
 import { checkPassword, validateUsername, validateEmail } from '../utils/validation'
 
+type Mode = 'login' | 'register' | 'forgot'
+
 export default function AuthPage() {
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [mode, setMode] = useState<Mode>('login')
   const [form, setForm] = useState({ username: '', email: '', password: '' })
   const [error, setError] = useState(() => {
-    // Mensagem deixada por um logout forçado (banimento/expulsão)
+    // Mensagem deixada por um logout forçado (banimento/expulsão) ou reset de senha
     const msg = localStorage.getItem('ds_authmsg')
     if (msg) { localStorage.removeItem('ds_authmsg'); return msg }
     return ''
   })
+  const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
   const { setAuth } = useAppStore()
   const navigate = useNavigate()
 
   const pwdCheck = useMemo(() => checkPassword(form.password), [form.password])
 
+  const switchMode = (m: Mode) => {
+    setMode(m)
+    setError('')
+    setInfo('')
+  }
+
   const handle = async () => {
     setError('')
+    setInfo('')
+
+    // Esqueci a senha — só precisa do email
+    if (mode === 'forgot') {
+      const eErr = validateEmail(form.email)
+      if (eErr) return setError(eErr)
+      setLoading(true)
+      try {
+        const r = await authService.forgotPassword(form.email)
+        setInfo(r.message)
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Erro ao enviar email')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
 
     if (mode === 'register') {
       const uErr = validateUsername(form.username)
@@ -45,6 +71,12 @@ export default function AuthPage() {
     }
   }
 
+  const submitLabel = loading
+    ? '█ aguarde...'
+    : mode === 'login' ? '→ entrar'
+    : mode === 'register' ? '+ criar conta'
+    : '✉ enviar link de redefinição'
+
   return (
     <div className="h-screen flex items-center justify-center font-mono" style={{ background: 'var(--bg-primary)' }}>
       <div className="w-[360px]">
@@ -65,7 +97,7 @@ export default function AuthPage() {
             {(['login', 'register'] as const).map(m => (
               <button
                 key={m}
-                onClick={() => { setMode(m); setError('') }}
+                onClick={() => switchMode(m)}
                 className="flex-1 py-2.5 text-xs font-mono transition-colors"
                 style={{
                   color: mode === m ? 'var(--text-primary)' : 'var(--text-secondary)',
@@ -79,6 +111,12 @@ export default function AuthPage() {
           </div>
 
           <div className="p-5 space-y-3">
+            {mode === 'forgot' && (
+              <p className="text-xs" style={{ color: 'var(--comment)' }}>
+                {'// digite seu email — enviamos um link pra criar uma nova senha'}
+              </p>
+            )}
+
             {mode === 'register' && (
               <div>
                 <label className="text-[11px] mb-1 block" style={{ color: 'var(--text-secondary)' }}>username</label>
@@ -99,6 +137,7 @@ export default function AuthPage() {
                 type="email"
                 value={form.email}
                 onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                onKeyDown={e => e.key === 'Enter' && mode === 'forgot' && handle()}
                 placeholder="dev@email.com"
                 autoComplete="email"
                 className="w-full px-3 py-2 text-sm rounded outline-none font-mono"
@@ -106,31 +145,46 @@ export default function AuthPage() {
               />
             </div>
 
-            <div>
-              <label className="text-[11px] mb-1 block" style={{ color: 'var(--text-secondary)' }}>password</label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && handle()}
-                placeholder="••••••••"
-                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                className="w-full px-3 py-2 text-sm rounded outline-none font-mono"
-                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-              />
+            {mode !== 'forgot' && (
+              <div>
+                <label className="text-[11px] mb-1 block" style={{ color: 'var(--text-secondary)' }}>password</label>
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && handle()}
+                  placeholder="••••••••"
+                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                  className="w-full px-3 py-2 text-sm rounded outline-none font-mono"
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                />
 
-              {mode === 'register' && form.password.length > 0 && (
-                <div className="mt-2 space-y-0.5 text-[10px] font-mono">
-                  <PwdRule ok={pwdCheck.hasLength} label="mínimo 8 caracteres" />
-                  <PwdRule ok={pwdCheck.hasUpper} label="1 letra maiúscula" />
-                  <PwdRule ok={pwdCheck.hasLower} label="1 letra minúscula" />
-                  <PwdRule ok={pwdCheck.hasNumber} label="1 número" />
-                </div>
-              )}
-            </div>
+                {mode === 'register' && form.password.length > 0 && (
+                  <div className="mt-2 space-y-0.5 text-[10px] font-mono">
+                    <PwdRule ok={pwdCheck.hasLength} label="mínimo 8 caracteres" />
+                    <PwdRule ok={pwdCheck.hasUpper} label="1 letra maiúscula" />
+                    <PwdRule ok={pwdCheck.hasLower} label="1 letra minúscula" />
+                    <PwdRule ok={pwdCheck.hasNumber} label="1 número" />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {mode === 'login' && (
+              <button
+                onClick={() => switchMode('forgot')}
+                className="text-[11px] font-mono transition-colors hover:underline"
+                style={{ color: 'var(--blue)' }}
+              >
+                esqueceu a senha?
+              </button>
+            )}
 
             {error && (
               <p className="text-xs font-mono" style={{ color: '#f48771' }}>// erro: {error}</p>
+            )}
+            {info && (
+              <p className="text-xs font-mono" style={{ color: 'var(--green)' }}>// {info}</p>
             )}
 
             <button
@@ -139,8 +193,18 @@ export default function AuthPage() {
               className="w-full py-2.5 text-sm font-mono rounded mt-2 disabled:opacity-50 transition-opacity"
               style={{ background: 'var(--accent)', color: '#fff' }}
             >
-              {loading ? '█ aguarde...' : mode === 'login' ? '→ entrar' : '+ criar conta'}
+              {submitLabel}
             </button>
+
+            {mode === 'forgot' && (
+              <button
+                onClick={() => switchMode('login')}
+                className="w-full text-[11px] font-mono transition-colors hover:underline"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                ← voltar pro login
+              </button>
+            )}
           </div>
         </div>
 

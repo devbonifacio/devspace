@@ -2,6 +2,7 @@ import express from 'express'
 import User from '../models/User.js'
 import { protect } from '../middleware/auth.js'
 import { getBotUser } from '../utils/bot.js'
+import { validateUsername } from '../utils/validation.js'
 
 const router = express.Router()
 
@@ -66,20 +67,28 @@ router.get('/:id', protect, async (req, res) => {
 // PATCH /api/users/profile — atualiza bio, githubUrl, avatar
 router.patch('/profile', protect, async (req, res) => {
   try {
-    const { bio, githubUrl, avatar, banner } = req.body
+    const { bio, githubUrl, avatar, banner, username } = req.body
     const updates = {}
     if (bio !== undefined) updates.bio = bio
     if (githubUrl !== undefined) updates.githubUrl = githubUrl
     if (avatar !== undefined) updates.avatar = avatar
     if (banner !== undefined) updates.banner = banner
+    if (username !== undefined) {
+      const err = validateUsername(username)
+      if (err) return res.status(400).json({ error: err })
+      updates.username = username.trim()
+    }
 
     const user = await User.findByIdAndUpdate(
       req.user._id,
       updates,
-      { new: true }
+      { new: true, runValidators: true }
     ).select('-password')
     res.json(user)
   } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ error: 'Esse username já está em uso' })
+    }
     res.status(500).json({ error: err.message })
   }
 })

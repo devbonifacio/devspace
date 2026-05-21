@@ -1,8 +1,10 @@
 import express from 'express'
 import jwt from 'jsonwebtoken'
+import crypto from 'crypto'
 import User from '../models/User.js'
 import { protect, isOwnerEmail } from '../middleware/auth.js'
 import { isBanned, banMessage } from '../utils/ban.js'
+import { sendResetEmail } from '../utils/email.js'
 import { validatePassword, validateUsername, validateEmail } from '../utils/validation.js'
 
 const router = express.Router()
@@ -84,6 +86,65 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: banMessage(user.ban), code: 'BANNED' })
     }
     res.json({ token: signToken(user._id), user: sanitize(user) })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/auth/forgot-password — envia email com link de redefinição
+router.post('/forgot-password', async (req, res) => {
+  // Resposta genérica — nunca revela se o email existe ou não
+  const generic = { message: 'Se existir uma conta com esse email, enviamos um link de redefinição.' }
+  try {
+    const { email } = req.body
+    if (!email || typeof email !== 'string') return res.json(generic)
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() })
+    if (user && user.role !== 'bot') {
+      // Token cru vai no link; só o HASH é guardado no banco
+      const raw = crypto.randomBytes(32).toString('hex')
+      user.resetToken = crypto.createHash('sha256').update(raw).digest('hex')
+      user.resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000) // 1h
+      await user.save()
+
+      const base = (process.env.CLIENT_URL || 'http://localhost:5173').split(',')[0].trim()
+      const link = `${base}/reset-password?token=${raw}`
+      try {
+        await sendResetEmail(user.email, user.username, link)
+      } catch (e) {
+        console.error('email reset:', e.message)
+      }
+    }
+    res.json(generic)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// POST /api/auth/reset-password — define nova senha a partir do token
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body
+    if (!token || !password) return res.status(400).json({ error: 'Token e senha são obrigatórios' })
+
+    const passwordErr = validatePassword(password)
+    if (passwordErr) return res.status(400).json({ error: passwordErr })
+
+    const hash = crypto.createHash('sha256').update(String(token)).digest('hex')
+    const user = await User.findOne({
+      resetToken: hash,
+      resetTokenExpiry: { $gt: new Date() },
+    })
+    if (!user) {
+      return res.status(400).json({ error: 'Link inválido ou expirado. Pede um novo.' })
+    }
+
+    user.password = password // o pre-save hook faz o hash
+    user.resetToken = null
+    user.resetTokenExpiry = null
+    await user.save()
+
+    res.json({ message: 'Senha redefinida com sucesso. Já podes entrar.' })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

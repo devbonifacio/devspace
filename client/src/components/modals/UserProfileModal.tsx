@@ -19,6 +19,7 @@ const PRESET_STATUSES = [
 
 export default function UserProfileModal({ onClose }: { onClose: () => void }) {
   const { user, setAuth, token } = useAppStore()
+  const [username, setUsername] = useState(user?.username || '')
   const [bio, setBio] = useState(user?.bio || '')
   const [githubUrl, setGitBranchUrl] = useState(user?.githubUrl || '')
   const [avatar, setAvatar] = useState(user?.avatar || '')
@@ -32,6 +33,7 @@ export default function UserProfileModal({ onClose }: { onClose: () => void }) {
   const [bannerUploading, setBannerUploading] = useState(false)
   const [bannerPct, setBannerPct] = useState(0)
   const [saved, setSaved] = useState(false)
+  const [saveErr, setSaveErr] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
 
@@ -67,15 +69,16 @@ export default function UserProfileModal({ onClose }: { onClose: () => void }) {
 
   const handle = async () => {
     if (!token) return
+    setSaveErr('')
     setLoading(true)
     try {
-      await api.patch('/api/users/profile', { bio, githubUrl, avatar, banner })
+      await api.patch('/api/users/profile', { username: username.trim(), bio, githubUrl, avatar, banner })
       const updated = await userService.setCustomStatus(emoji, statusText)
       setAuth(updated, token)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
-    } catch (err) {
-      console.error(err)
+    } catch (err: any) {
+      setSaveErr(err.response?.data?.error || 'Erro ao salvar perfil')
     } finally {
       setLoading(false)
     }
@@ -173,10 +176,16 @@ export default function UserProfileModal({ onClose }: { onClose: () => void }) {
                 onChange={e => handleAvatarChange(e.target.files?.[0])}
               />
             </div>
-            <div>
-              <div className="text-sm font-medium font-mono" style={{ color: 'var(--blue)' }}>
-                {user?.username}
-              </div>
+            <div className="flex-1 min-w-0">
+              <input
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="username"
+                maxLength={20}
+                title="seu nome de usuário — pode trocar quando quiser"
+                className="text-sm font-medium font-mono rounded px-2 py-1 outline-none w-full"
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--blue)' }}
+              />
               <div className="text-xs font-mono mt-0.5" style={{ color: 'var(--text-secondary)' }}>{user?.email}</div>
               <div
                 className="text-xs font-mono mt-1 px-2 py-px rounded inline-block"
@@ -266,6 +275,10 @@ export default function UserProfileModal({ onClose }: { onClose: () => void }) {
               />
             </div>
           </div>
+
+          {saveErr && (
+            <p className="text-xs font-mono" style={{ color: '#f48771' }}>// {saveErr}</p>
+          )}
 
           <button
             onClick={handle}
