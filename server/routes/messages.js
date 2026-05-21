@@ -1,7 +1,7 @@
 import express from 'express'
 import Message from '../models/Message.js'
 import Channel from '../models/Channel.js'
-import { protect } from '../middleware/auth.js'
+import { protect, isOwnerEmail } from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -169,7 +169,8 @@ router.delete('/:id', async (req, res) => {
     const msg = await Message.findById(req.params.id)
     if (!msg) return res.status(404).json({ error: 'Mensagem não encontrada' })
 
-    let canDelete = msg.author.equals(req.user._id)
+    // Autor, dono do painel (adm supremo) ou admin do grupo podem apagar
+    let canDelete = msg.author.equals(req.user._id) || isOwnerEmail(req.user.email)
     if (!canDelete && msg.channel) {
       const channel = await Channel.findById(msg.channel).populate('group')
       const group = channel?.group

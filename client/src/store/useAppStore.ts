@@ -275,6 +275,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
     socket.on('message-edited', (msg: Message) => get().updateMessage(msg))
     socket.on('message-updated', (msg: Message) => get().updateMessage(msg))
     socket.on('message-deleted', (data: { _id: string }) => get().removeMessage(data._id))
+    // Snapshot inicial: lista de quem já está online ao conectar
+    socket.on('online-users', (ids: string[]) => get().setOnlineUsers(ids))
     socket.on('user-status', ({ userId, status }) => get().setUserStatus(userId, status))
     socket.on('user-custom-status', ({ userId, customStatus }) => get().setCustomStatus(userId, customStatus))
 

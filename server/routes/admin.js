@@ -2,6 +2,7 @@ import express from 'express'
 import User from '../models/User.js'
 import { protect, requireOwner } from '../middleware/auth.js'
 import { PERMANENT_DATE } from '../utils/ban.js'
+import { getBotUser } from '../utils/bot.js'
 
 const router = express.Router()
 
@@ -102,6 +103,27 @@ router.post('/users/:id/unban', async (req, res) => {
 
     res.json({ ok: true })
   } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// PATCH /api/admin/bot — personaliza a conta-bot (nome, foto, bio)
+router.patch('/bot', async (req, res) => {
+  try {
+    const bot = await getBotUser()
+    const { username, avatar, bio } = req.body
+    if (typeof username === 'string' && username.trim()) bot.username = username.trim().slice(0, 30)
+    if (typeof avatar === 'string') bot.avatar = avatar
+    if (typeof bio === 'string') bot.bio = bio.slice(0, 300)
+    await bot.save()
+    res.json({
+      _id: bot._id, username: bot.username, avatar: bot.avatar,
+      bio: bot.bio, role: bot.role, status: bot.status,
+    })
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ error: 'Esse nome já está em uso' })
+    }
     res.status(500).json({ error: err.message })
   }
 })

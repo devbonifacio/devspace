@@ -24,7 +24,7 @@ interface Props {
 }
 
 export default function MessageBubble({ msg, insideThread = false }: Props) {
-  const { user, socket, activeChannel, setReplyingTo, openThread, openProfile } = useAppStore()
+  const { user, socket, activeChannel, activeGroup, setReplyingTo, openThread, openProfile } = useAppStore()
   const [editing, setEditing] = useState(false)
   const [editText, setEditText] = useState(msg.content)
   const [showAllEmojis, setShowAllEmojis] = useState(false)
@@ -46,13 +46,43 @@ export default function MessageBubble({ msg, insideThread = false }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing])
 
-  // System messages — render minimalista
+  const isMine = user?._id === msg.author._id
+
+  // Moderação: owner global (adm supremo) ou admin/owner do grupo ativo pode apagar
+  const groupOwnerId = activeGroup
+    ? (typeof activeGroup.owner === 'string' ? activeGroup.owner : (activeGroup.owner as any)?._id)
+    : null
+  const isGroupMod = !!activeGroup && !!user &&
+    (groupOwnerId === user._id || (activeGroup.admins || []).includes(user._id))
+  const canModerate = !!user?.isOwner || isGroupMod
+
+  const handleDelete = async () => {
+    if (!confirm('Apagar esta mensagem?')) return
+    try {
+      await messageService.remove(msg._id)
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Erro ao apagar')
+    }
+  }
+
+  // System messages — render minimalista; somem sozinhas após 4h
   if (msg.type === 'system') {
+    const ageMs = Date.now() - new Date(msg.createdAt).getTime()
+    if (ageMs > 4 * 60 * 60 * 1000) return null
     return (
-      <div className="flex items-center justify-center py-1 px-4 select-none">
+      <div className="group flex items-center justify-center py-1 px-4 select-none">
         <div className="flex items-center gap-2 text-[11px] font-mono" style={{ color: 'var(--comment)' }}>
           <span className="h-px flex-1 min-w-8" style={{ background: 'var(--border)' }} />
           <span>// {msg.content}</span>
+          {canModerate && (
+            <button
+              onClick={handleDelete}
+              title="apagar mensagem"
+              className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400"
+            >
+              <Trash2 size={10} />
+            </button>
+          )}
           <span className="h-px flex-1 min-w-8" style={{ background: 'var(--border)' }} />
         </div>
       </div>
@@ -60,7 +90,6 @@ export default function MessageBubble({ msg, insideThread = false }: Props) {
   }
 
   const parsed = parseMessage(msg.content)
-  const isMine = user?._id === msg.author._id
   const mentionsMe = user?.username ? hasMention(msg.content, user.username) : false
   const replyParent = typeof msg.replyTo === 'object' && msg.replyTo !== null ? msg.replyTo : null
 
@@ -82,15 +111,6 @@ export default function MessageBubble({ msg, insideThread = false }: Props) {
       setEditing(false)
     } catch (err: any) {
       alert(err.response?.data?.error || 'Erro ao editar')
-    }
-  }
-
-  const handleDelete = async () => {
-    if (!confirm('Apagar esta mensagem?')) return
-    try {
-      await messageService.remove(msg._id)
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Erro ao apagar')
     }
   }
 
@@ -335,7 +355,7 @@ export default function MessageBubble({ msg, insideThread = false }: Props) {
               <Edit2 size={12} />
             </button>
           )}
-          {isMine && (
+          {(isMine || canModerate) && (
             <button
               onClick={handleDelete}
               title="apagar"

@@ -61,6 +61,9 @@ export const setupSocket = (io) => {
     // Cada user entra na própria sala (usado para DMs)
     socket.join(`user:${userId}`)
 
+    // Snapshot: manda pra ESTE socket quem já está online agora
+    socket.emit('online-users', [...onlineUsers.keys()])
+
     if (onlineUsers.get(userId).size === 1) {
       try { await User.findByIdAndUpdate(userId, { status: 'online' }) } catch {}
       io.emit('user-status', { userId, status: 'online' })

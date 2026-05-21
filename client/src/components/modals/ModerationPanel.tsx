@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from 'react'
-import { Shield, X, Search, Ban, Loader2, AlertCircle, Check, RotateCcw } from 'lucide-react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { Shield, X, Search, Ban, Loader2, AlertCircle, Check, RotateCcw, Camera } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useAppStore } from '../../store/useAppStore'
 import { adminService, type ModUser, type ModStats } from '../../services/admin.service'
+import { uploadService } from '../../services/upload.service'
 import Avatar from '../ui/Avatar'
 
 const DURATIONS = [
@@ -42,6 +43,51 @@ export default function ModerationPanel({ onClose }: { onClose: () => void }) {
   const [durIdx, setDurIdx] = useState(2) // default: 6 horas
   const [reason, setReason] = useState('')
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  // Configuração do DevSpaceBot
+  const botUser = useAppStore(s => s.botUser)
+  const setBotUser = useAppStore(s => s.setBotUser)
+  const [botName, setBotName] = useState('')
+  const [botBio, setBotBio] = useState('')
+  const [botAvatar, setBotAvatar] = useState('')
+  const [botSaving, setBotSaving] = useState(false)
+  const [botUploading, setBotUploading] = useState(false)
+  const botFileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (botUser) {
+      setBotName(botUser.username)
+      setBotBio(botUser.bio || '')
+      setBotAvatar(botUser.avatar || '')
+    }
+  }, [botUser])
+
+  const handleBotAvatar = async (file?: File) => {
+    if (!file) return
+    setBotUploading(true)
+    setError('')
+    try {
+      const res = await uploadService.upload(file, 'avatars')
+      setBotAvatar(res.url)
+    } catch (err: any) {
+      setError(err.message || 'Erro no upload')
+    } finally {
+      setBotUploading(false)
+    }
+  }
+
+  const saveBot = async () => {
+    setBotSaving(true)
+    setError('')
+    try {
+      const updated = await adminService.updateBot({ username: botName.trim(), avatar: botAvatar, bio: botBio })
+      setBotUser(updated)
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Erro ao salvar bot')
+    } finally {
+      setBotSaving(false)
+    }
+  }
 
   const load = useCallback(async (query: string) => {
     setLoading(true)
@@ -118,6 +164,65 @@ export default function ModerationPanel({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} style={{ color: 'var(--text-secondary)' }} className="hover:text-white">
             <X size={16} />
           </button>
+        </div>
+
+        {/* Configuração do DevSpaceBot */}
+        <div className="px-4 pt-3 flex-shrink-0">
+          <div className="rounded p-3" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+            <div className="text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--text-secondary)' }}>
+              configurar DevSpaceBot
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => botFileRef.current?.click()}
+                disabled={botUploading}
+                title="trocar foto do bot"
+                className="relative group flex-shrink-0"
+              >
+                <Avatar username={botName || 'Bot'} avatar={botAvatar} size="lg" />
+                <span
+                  className={`absolute inset-0 flex items-center justify-center rounded transition-opacity ${
+                    botUploading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}
+                  style={{ background: 'rgba(0,0,0,0.55)', color: '#fff' }}
+                >
+                  {botUploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+                </span>
+              </button>
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <input
+                  value={botName}
+                  onChange={e => setBotName(e.target.value.slice(0, 30))}
+                  placeholder="nome do bot"
+                  className="w-full px-2 py-1.5 text-xs font-mono rounded outline-none"
+                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                />
+                <textarea
+                  value={botBio}
+                  onChange={e => setBotBio(e.target.value.slice(0, 300))}
+                  rows={2}
+                  placeholder="bio do bot"
+                  className="w-full px-2 py-1.5 text-xs font-mono rounded outline-none resize-none"
+                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                />
+              </div>
+            </div>
+            <button
+              onClick={saveBot}
+              disabled={botSaving || botUploading}
+              className="w-full mt-2 py-1.5 text-xs font-mono rounded flex items-center justify-center gap-1.5 disabled:opacity-40"
+              style={{ background: 'var(--accent)', color: '#fff' }}
+            >
+              {botSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} salvar bot
+            </button>
+            <input
+              ref={botFileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => handleBotAvatar(e.target.files?.[0])}
+            />
+          </div>
         </div>
 
         {/* Stats */}

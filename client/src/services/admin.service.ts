@@ -1,4 +1,5 @@
 import api from './api'
+import type { User } from '../types'
 
 export interface ModUser {
   _id: string
@@ -41,5 +42,10 @@ export const adminService = {
 
   async unban(userId: string): Promise<void> {
     await api.post(`/api/admin/users/${userId}/unban`)
+  },
+
+  async updateBot(data: { username?: string; avatar?: string; bio?: string }): Promise<User> {
+    const r = await api.patch('/api/admin/bot', data)
+    return r.data
   },
 }
