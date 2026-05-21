@@ -146,6 +146,7 @@ export const useCallStore = create<CallStore>((set, get) => ({
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'connected') {
           set({ status: 'in-call', startedAt: Date.now() })
+          playConnectSound()
         } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
           // Tenta encerrar limpo
           get().hangup(socketRef)
@@ -193,6 +194,7 @@ export const useCallStore = create<CallStore>((set, get) => ({
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'connected') {
           set({ status: 'in-call', startedAt: Date.now() })
+          playConnectSound()
         } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
           get().hangup(socketRef)
         }
@@ -317,13 +319,13 @@ export function startRingtone() {
   }
 }
 
-// Som curto de encerramento de chamada (notas descendo)
-export function playEndSound() {
+// Blip sintetizado genérico (sequência de notas)
+function callBlip(freqs: number[]) {
   try {
     const Ctx = window.AudioContext || (window as any).webkitAudioContext
     const ctx = new Ctx()
     let t = ctx.currentTime
-    for (const f of [659.25, 440]) {
+    for (const f of freqs) {
       const o = ctx.createOscillator()
       const g = ctx.createGain()
       o.connect(g); g.connect(ctx.destination)
@@ -338,6 +340,16 @@ export function playEndSound() {
     }
     setTimeout(() => ctx.close().catch(() => {}), 800)
   } catch { /* áudio indisponível — ignora */ }
+}
+
+// Som ao a chamada conectar (notas subindo)
+export function playConnectSound() {
+  callBlip([440, 659.25])
+}
+
+// Som curto de encerramento de chamada (notas descendo)
+export function playEndSound() {
+  callBlip([659.25, 440])
 }
 
 export function stopRingtone() {
