@@ -77,7 +77,7 @@ export default function UserProfileCard() {
           </div>
         ) : profile ? (
           <>
-            {/* Banner accent + avatar sobreposto */}
+            {/* Banner accent */}
             <div className="h-16 relative" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-hover))' }}>
               <button
                 onClick={close}
@@ -86,16 +86,18 @@ export default function UserProfileCard() {
               >
                 <X size={13} />
               </button>
-              <div className="absolute -bottom-8 left-4">
+            </div>
+
+            <div className="px-4 pb-4">
+              {/* Avatar sobreposto ao banner, em fluxo normal */}
+              <div className="-mt-10 mb-2">
                 <div style={{ padding: 3, background: 'var(--bg-secondary)', borderRadius: 8, display: 'inline-block' }}>
                   <Avatar username={profile.username} avatar={profile.avatar} size="xl" />
                 </div>
               </div>
-            </div>
 
-            <div className="pt-10 px-4 pb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-base font-mono font-medium" style={{ color: 'var(--blue)' }}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-base font-mono font-medium break-all" style={{ color: 'var(--blue)' }}>
                   {profile.username}
                 </span>
                 <span
