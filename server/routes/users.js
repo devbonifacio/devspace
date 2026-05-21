@@ -1,13 +1,14 @@
 import express from 'express'
 import User from '../models/User.js'
 import { protect } from '../middleware/auth.js'
+import { getBotUser } from '../utils/bot.js'
 
 const router = express.Router()
 
 // GET /api/users/online — usuários online (com ids dos grupos em comum filtrados no client se necessário)
 router.get('/online', protect, async (_req, res) => {
   try {
-    const users = await User.find({ status: 'online' }).select('username avatar role status')
+    const users = await User.find({ status: 'online', role: { $ne: 'bot' } }).select('username avatar role status')
     res.json(users)
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -22,6 +23,7 @@ router.get('/search', protect, async (req, res) => {
 
     const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const users = await User.find({
+      role: { $ne: 'bot' },
       $or: [
         { username: { $regex: safe, $options: 'i' } },
         { email: { $regex: safe, $options: 'i' } }
@@ -31,6 +33,19 @@ router.get('/search', protect, async (req, res) => {
       .limit(20)
 
     res.json(users)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// GET /api/users/bot — perfil público da conta-bot (DevSpaceBot)
+router.get('/bot', protect, async (_req, res) => {
+  try {
+    const bot = await getBotUser()
+    res.json({
+      _id: bot._id, username: bot.username, avatar: bot.avatar,
+      bio: bot.bio, role: bot.role, status: bot.status,
+    })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

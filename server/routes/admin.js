@@ -12,7 +12,7 @@ router.use(protect, requireOwner)
 router.get('/users', async (req, res) => {
   try {
     const q = (req.query.q || '').trim()
-    const filter = {}
+    const filter = { role: { $ne: 'bot' } }   // a conta-bot não aparece na moderação
     if (q.length >= 1) {
       const safe = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       filter.$or = [

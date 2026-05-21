@@ -16,6 +16,7 @@ import uploadRoutes from './routes/uploads.js'
 import bookmarkRoutes from './routes/bookmarks.js'
 import adminRoutes from './routes/admin.js'
 import { setupSocket } from './socket/index.js'
+import { getBotUser } from './utils/bot.js'
 
 dotenv.config()
 
@@ -112,6 +113,10 @@ const connectWithRetry = async (attempt = 1) => {
   try {
     await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 10000 })
     console.log('✅ MongoDB conectado')
+    // Garante que a conta-bot (DevSpaceBot) existe
+    getBotUser()
+      .then(() => console.log('🤖 Conta-bot pronta'))
+      .catch(e => console.error('conta-bot:', e.message))
     httpServer.listen(PORT, () => console.log(`🚀 Servidor na porta ${PORT}`))
   } catch (err) {
     const delay = Math.min(30000, attempt * 2000)

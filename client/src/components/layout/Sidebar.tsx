@@ -17,6 +17,7 @@ export default function Sidebar() {
   const [copied, setCopied] = useState(false)
   const onlineUsers = useAppStore(s => s.onlineUsers)
   const customStatuses = useAppStore(s => s.customStatuses)
+  const botUser = useAppStore(s => s.botUser)
 
   // Status custom de um membro — primeiro tenta vir do socket (atualizado),
   // depois do snapshot que veio com o populate do grupo
@@ -119,6 +120,27 @@ export default function Sidebar() {
           {showDms ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
           Mensagens diretas
         </button>
+
+        {showDms && botUser && (
+          <button
+            onClick={() => setActiveDmUser(botUser)}
+            title="DevSpaceBot — boas-vindas e dicas"
+            className={`w-full flex items-center gap-2 px-3 py-1.5 font-mono transition-colors ${
+              activeDmUser?._id === botUser._id
+                ? 'text-[var(--text-bright)] bg-[var(--bg-active)]'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+            }`}
+          >
+            <span className="text-[11px] flex-shrink-0">🤖</span>
+            <span className="text-sm truncate flex-1 text-left">{botUser.username}</span>
+            <span
+              className="text-[9px] px-1 py-px rounded"
+              style={{ background: 'var(--accent-bg)', color: 'var(--blue)', border: '1px solid #9cdcfe33' }}
+            >
+              bot
+            </span>
+          </button>
+        )}
 
         {showDms && activeGroup.members?.map((member: User) => {
           if (member._id === user?._id) return null

@@ -34,7 +34,7 @@ export default function AppShell() {
     user, token, groups, activeGroup, notifications,
     threadParentId, openThread, replyingTo, setReplyingTo,
     viewingProfileId, openProfile,
-    setAuth, setGroups, setActiveGroup, initSocket, updateUser
+    setAuth, setGroups, setActiveGroup, initSocket, updateUser, setBotUser
   } = useAppStore()
   const settings = useSettingsStore()
 
@@ -81,6 +81,7 @@ export default function AppShell() {
     initSocket()
     loadGroups()
     syncStatus()
+    loadBot()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?._id])
 
@@ -105,6 +106,12 @@ export default function AppShell() {
     try {
       const data = await groupService.getMyGroups()
       setGroups(data)
+    } catch (err) { console.error(err) }
+  }
+
+  const loadBot = async () => {
+    try {
+      setBotUser(await userService.getBot())
     } catch (err) { console.error(err) }
   }
 

@@ -12,7 +12,7 @@ export interface User {
   banner?: string
   bio: string
   githubUrl: string
-  role: 'dev' | 'senior' | 'admin'
+  role: 'dev' | 'senior' | 'admin' | 'bot'
   status: 'online' | 'away' | 'offline'
   customStatus?: CustomStatus
   groups: string[]

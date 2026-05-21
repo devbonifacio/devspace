@@ -9,6 +9,7 @@ const NOTIF_LIMIT = 50
 interface AppStore {
   user: User | null
   token: string | null
+  botUser: User | null   // conta-bot (DevSpaceBot), carregada após login
 
   groups: Group[]
   activeGroup: Group | null
@@ -33,6 +34,7 @@ interface AppStore {
 
   setAuth: (user: User, token: string) => void
   updateUser: (user: User) => void
+  setBotUser: (bot: User | null) => void
   logout: () => void
 
   setGroups: (groups: Group[]) => void
@@ -71,6 +73,7 @@ interface AppStore {
 export const useAppStore = create<AppStore>((set, get) => ({
   user: null,
   token: localStorage.getItem('ds_token'),
+  botUser: null,
   groups: [],
   activeGroup: null,
   activeChannel: null,
@@ -94,13 +97,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   updateUser: (user) => set({ user }),
 
+  setBotUser: (bot) => set({ botUser: bot }),
+
   logout: () => {
     localStorage.removeItem('ds_token')
     // Encerra qualquer chamada ativa antes de derrubar o socket
     try { useCallStore.getState().hangup(get().socket) } catch {}
     get().socket?.disconnect()
     set({
-      user: null, token: null, socket: null, socketConnected: false,
+      user: null, token: null, botUser: null, socket: null, socketConnected: false,
       groups: [], activeGroup: null, activeChannel: null, activeDmUser: null,
       messages: [], notifications: [], onlineUsers: new Set(), typingUsers: new Map()
     })

@@ -4,6 +4,7 @@ import Channel from '../models/Channel.js'
 import Message from '../models/Message.js'
 import User from '../models/User.js'
 import { protect } from '../middleware/auth.js'
+import { getBotUser, welcomeGroup } from '../utils/bot.js'
 
 const router = express.Router()
 
@@ -92,6 +93,21 @@ router.post('/join', protect, async (req, res) => {
         })
         const pop = await sysMsg.populate('author', 'username role avatar status')
         io.to(`channel:${geral._id}`).emit('new-message', pop)
+
+        // DevSpaceBot dá as boas-vindas no canal geral
+        try {
+          const bot = await getBotUser()
+          const botMsg = await Message.create({
+            author: bot._id,
+            channel: geral._id,
+            content: welcomeGroup(req.user.username),
+            type: 'text'
+          })
+          const botPop = await botMsg.populate('author', 'username role avatar status')
+          io.to(`channel:${geral._id}`).emit('new-message', botPop)
+        } catch (e) {
+          console.error('welcome grupo:', e.message)
+        }
       }
     }
 
