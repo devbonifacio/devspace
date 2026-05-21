@@ -50,6 +50,28 @@ export const setupSocket = (io) => {
     return ids
   }
 
+  // Chamadas de voz em grupo — voiceRooms: groupId -> Map(userId -> { socketId, username, avatar })
+  const voiceRooms = new Map()
+
+  const voiceRoomState = (groupId) => {
+    const room = voiceRooms.get(groupId)
+    const participants = room
+      ? [...room.entries()].map(([uid, v]) => ({ _id: uid, username: v.username, avatar: v.avatar }))
+      : []
+    return { groupId, count: participants.length, participants }
+  }
+
+  const leaveVoice = (socket, userId, groupId) => {
+    if (!groupId) return
+    const room = voiceRooms.get(groupId)
+    if (!room || !room.has(userId)) return
+    room.delete(userId)
+    socket.leave(`voice:${groupId}`)
+    socket.to(`voice:${groupId}`).emit('voice:peer-left', { userId })
+    if (room.size === 0) voiceRooms.delete(groupId)
+    io.to(`group:${groupId}`).emit('voice:room', voiceRoomState(groupId))
+  }
+
   io.on('connection', async (socket) => {
     const userId = socket.handshake.auth?.userId
     if (!userId) return
@@ -99,10 +121,52 @@ export const setupSocket = (io) => {
       console.error('bot welcome:', e.message)
     }
 
+    // Em qual grupo este socket está numa chamada de voz (null = nenhuma)
+    let voiceGroupId = null
+
     socket.on('join-channel', (channelId) => socket.join(`channel:${channelId}`))
     socket.on('leave-channel', (channelId) => socket.leave(`channel:${channelId}`))
-    socket.on('join-group', (groupId) => socket.join(`group:${groupId}`))
+    socket.on('join-group', (groupId) => {
+      socket.join(`group:${groupId}`)
+      // Manda o estado atual da chamada de voz desse grupo (pro indicador)
+      socket.emit('voice:room', voiceRoomState(groupId))
+    })
     socket.on('leave-group', (groupId) => socket.leave(`group:${groupId}`))
+
+    // ===== Chamada de voz em grupo (mesh WebRTC — server só faz signaling) =====
+    socket.on('voice:join', ({ groupId, user }) => {
+      if (!groupId || !user) return
+      let room = voiceRooms.get(groupId)
+      if (!room) { room = new Map(); voiceRooms.set(groupId, room) }
+      // Manda pro novo a lista de quem já está na call
+      const existing = [...room.entries()].map(([uid, v]) => ({ _id: uid, username: v.username, avatar: v.avatar }))
+      socket.emit('voice:peers', { peers: existing })
+      // Registra e avisa os outros participantes
+      room.set(userId, { socketId: socket.id, username: user.username, avatar: user.avatar })
+      voiceGroupId = groupId
+      socket.join(`voice:${groupId}`)
+      socket.to(`voice:${groupId}`).emit('voice:peer-joined', {
+        user: { _id: userId, username: user.username, avatar: user.avatar },
+      })
+      io.to(`group:${groupId}`).emit('voice:room', voiceRoomState(groupId))
+    })
+
+    // Relay de SDP/ICE entre dois peers da call
+    socket.on('voice:signal', ({ toUserId, data }) => {
+      const room = voiceGroupId && voiceRooms.get(voiceGroupId)
+      const meInfo = room && room.get(userId)
+      io.to(`user:${toUserId}`).emit('voice:signal', {
+        from: userId,
+        fromUser: { _id: userId, username: meInfo?.username, avatar: meInfo?.avatar },
+        data,
+      })
+    })
+
+    socket.on('voice:leave', ({ groupId }) => {
+      const gid = groupId || voiceGroupId
+      leaveVoice(socket, userId, gid)
+      if (gid === voiceGroupId) voiceGroupId = null
+    })
 
     socket.on('send-message', async (data) => {
       try {
@@ -234,6 +298,9 @@ export const setupSocket = (io) => {
     })
 
     socket.on('disconnect', async () => {
+      // Sai de qualquer chamada de voz ao desconectar
+      if (voiceGroupId) leaveVoice(socket, userId, voiceGroupId)
+
       const sockets = onlineUsers.get(userId)
       if (!sockets) return
       sockets.delete(socket.id)

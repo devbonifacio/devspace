@@ -52,6 +52,27 @@ router.get('/bot', protect, async (_req, res) => {
   }
 })
 
+// GET /api/users/suggestions — "pessoas que talvez você conheça"
+router.get('/suggestions', protect, async (req, res) => {
+  try {
+    const users = await User.find({
+      _id: { $ne: req.user._id },
+      role: { $ne: 'bot' },
+      $or: [
+        { 'ban.until': null },
+        { 'ban.until': { $lte: new Date() } },
+      ],
+    })
+      .select('username avatar role status createdAt')
+      .sort({ createdAt: -1 })
+      .limit(30)
+      .lean()
+    res.json(users)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // GET /api/users/:id — perfil público de um usuário (sem email/senha)
 router.get('/:id', protect, async (req, res) => {
   try {

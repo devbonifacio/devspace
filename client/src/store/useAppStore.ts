@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { io, Socket } from 'socket.io-client'
 import type { User, Group, Channel, Message, Notification, CustomStatus } from '../types'
 import { useCallStore } from './useCallStore'
+import { useGroupCallStore } from './useGroupCallStore'
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || 'http://localhost:3001'
 const NOTIF_LIMIT = 50
@@ -103,6 +104,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     localStorage.removeItem('ds_token')
     // Encerra qualquer chamada ativa antes de derrubar o socket
     try { useCallStore.getState().hangup(get().socket) } catch {}
+    try { useGroupCallStore.getState().leaveCall(get().socket) } catch {}
     get().socket?.disconnect()
     set({
       user: null, token: null, botUser: null, socket: null, socketConnected: false,
@@ -243,6 +245,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
     // Registra handlers de signaling de chamadas (1 vez por conexão)
     useCallStore.getState().attachSocketHandlers(socket, user._id)
+    useGroupCallStore.getState().attachSocketHandlers(socket, user._id)
 
     socket.on('new-message', (msg: Message) => {
       const { activeChannel, activeDmUser, user } = get()

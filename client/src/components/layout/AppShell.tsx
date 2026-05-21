@@ -20,6 +20,7 @@ import CommandPalette from '../modals/CommandPalette'
 import UserProfileCard from '../modals/UserProfileCard'
 import IncomingCallToast from '../call/IncomingCallToast'
 import CallWindow from '../call/CallWindow'
+import GroupCallPanel from '../call/GroupCallPanel'
 import { Hash, Plus, LogIn, Loader2 } from 'lucide-react'
 
 export default function AppShell() {
@@ -227,6 +228,7 @@ export default function AppShell() {
       {/* Voice call UI — sempre montado, eles se auto-renderizam só quando ativos */}
       <IncomingCallToast />
       <CallWindow />
+      <GroupCallPanel />
     </div>
   )
 }

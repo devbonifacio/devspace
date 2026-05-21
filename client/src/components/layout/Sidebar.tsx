@@ -1,6 +1,7 @@
-import { Hash, Lock, Plus, ChevronDown, ChevronRight, Settings, Cog } from 'lucide-react'
+import { Hash, Lock, Plus, ChevronDown, ChevronRight, Settings, Cog, Radio } from 'lucide-react'
 import { useState } from 'react'
 import { useAppStore } from '../../store/useAppStore'
+import { useGroupCallStore } from '../../store/useGroupCallStore'
 import Avatar from '../ui/Avatar'
 import CreateChannelModal from '../modals/CreateChannelModal'
 import UserProfileModal from '../modals/UserProfileModal'
@@ -8,7 +9,8 @@ import GroupSettingsModal from '../modals/GroupSettingsModal'
 import type { Channel, User } from '../../types'
 
 export default function Sidebar() {
-  const { user, activeGroup, activeChannel, activeDmUser, setActiveChannel, setActiveDmUser } = useAppStore()
+  const { user, socket, activeGroup, activeChannel, activeDmUser, setActiveChannel, setActiveDmUser } = useAppStore()
+  const { rooms, activeGroupId, joinCall } = useGroupCallStore()
   const [showChannels, setShowChannels] = useState(true)
   const [showDms, setShowDms] = useState(true)
   const [showCreateChannel, setShowCreateChannel] = useState(false)
@@ -112,6 +114,40 @@ export default function Sidebar() {
             <span className="truncate">{ch.name}</span>
           </button>
         ))}
+
+        {/* Chamada de voz do grupo */}
+        {(() => {
+          const room = activeGroup ? rooms[activeGroup._id] : undefined
+          const count = room?.count || 0
+          const inThisCall = activeGroupId === activeGroup?._id
+          return (
+            <button
+              onClick={() => {
+                if (inThisCall || !user || !socket || !activeGroup) return
+                joinCall(socket, activeGroup._id, activeGroup.name, {
+                  _id: user._id, username: user.username, avatar: user.avatar,
+                })
+              }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 mt-1 text-sm font-mono transition-colors text-left"
+              style={{
+                color: inThisCall ? 'var(--green)' : count > 0 ? 'var(--blue)' : 'var(--text-secondary)',
+                borderLeft: inThisCall ? '2px solid var(--green)' : '2px solid transparent',
+              }}
+              title={inThisCall ? 'você está na chamada' : 'entrar na chamada de voz'}
+            >
+              <Radio size={12} className={count > 0 ? 'animate-pulse' : ''} />
+              <span className="truncate flex-1">
+                {inThisCall ? 'na chamada de voz' : 'chamada de voz'}
+              </span>
+              {count > 0 && (
+                <span className="text-[10px] px-1.5 rounded-full font-mono"
+                  style={{ background: 'var(--green)', color: '#1e1e1e' }}>
+                  {count}
+                </span>
+              )}
+            </button>
+          )
+        })()}
 
         <button
           className="w-full flex items-center gap-1 px-3 py-1 mt-2 text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] uppercase tracking-widest font-mono"

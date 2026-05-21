@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Search, Hash, MessageCircle } from 'lucide-react'
+import { Search, MessageCircle, Users } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import { messageService } from '../../services/message.service'
 import { userService } from '../../services/user.service'
@@ -9,12 +9,18 @@ import Avatar from '../ui/Avatar'
 import type { Message, User } from '../../types'
 
 export default function SearchView() {
-  const { activeGroup, setActiveChannel, setActiveDmUser } = useAppStore()
+  const { activeGroup, setActiveChannel, setActiveDmUser, openProfile } = useAppStore()
   const [q, setQ] = useState('')
   const [tab, setTab] = useState<'messages' | 'users'>('messages')
   const [messages, setMessages] = useState<Message[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [suggestions, setSuggestions] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
+
+  // "Pessoas que talvez você conheça" — carrega uma vez
+  useEffect(() => {
+    userService.suggestions().then(setSuggestions).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (q.trim().length < 2) {
@@ -42,6 +48,8 @@ export default function SearchView() {
     if (channelObj) setActiveChannel(channelObj)
   }
 
+  const showSuggestions = tab === 'users' && q.trim().length < 2
+
   return (
     <div
       className="w-72 flex flex-col flex-shrink-0"
@@ -64,7 +72,7 @@ export default function SearchView() {
             style={{ color: 'var(--text-primary)' }}
             autoFocus
           />
-        </div> 
+        </div>
 
         <div className="flex gap-1 rounded p-0.5" style={{ background: 'var(--bg-input)' }}>
           {(['messages', 'users'] as const).map(t => (
@@ -120,21 +128,54 @@ export default function SearchView() {
           </button>
         ))}
 
-        {!loading && tab === 'users' && users.map(u => (
-          <button
-            key={u._id}
-            onClick={() => setActiveDmUser(u)}
-            className="w-full flex items-center gap-3 p-2 rounded transition-colors hover:bg-[var(--bg-tertiary)]"
-          >
-            <Avatar username={u.username} avatar={u.avatar} size="sm" />
-            <div className="flex-1 min-w-0 text-left">
-              <div className="text-sm font-mono truncate" style={{ color: 'var(--blue)' }}>{u.username}</div>
-              <div className="text-[10px] font-mono truncate" style={{ color: 'var(--text-secondary)' }}>{u.email}</div>
+        {/* Pessoas que talvez você conheça — quando não há busca ativa */}
+        {!loading && showSuggestions && (
+          <>
+            <div className="flex items-center gap-1.5 px-2 py-2 text-[10px] font-mono uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>
+              <Users size={11} /> pessoas que talvez você conheça
             </div>
-            <Hash size={11} style={{ color: 'var(--text-secondary)' }} />
-          </button>
-        ))}
+            {suggestions.length === 0 && (
+              <div className="text-center py-4 text-xs font-mono" style={{ color: 'var(--comment)' }}>
+                // ninguém por aqui ainda
+              </div>
+            )}
+            {suggestions.map(u => (
+              <UserRow key={u._id} u={u} onDm={() => setActiveDmUser(u)} onProfile={() => openProfile(u._id)} />
+            ))}
+          </>
+        )}
+
+        {!loading && tab === 'users' && q.trim().length >= 2 && (
+          users.length === 0 ? (
+            <div className="text-center py-4 text-xs font-mono" style={{ color: 'var(--comment)' }}>
+              // nenhum usuário encontrado
+            </div>
+          ) : users.map(u => (
+            <UserRow key={u._id} u={u} onDm={() => setActiveDmUser(u)} onProfile={() => openProfile(u._id)} />
+          ))
+        )}
       </div>
+    </div>
+  )
+}
+
+function UserRow({ u, onDm, onProfile }: { u: User; onDm: () => void; onProfile: () => void }) {
+  return (
+    <div className="w-full flex items-center gap-3 p-2 rounded transition-colors hover:bg-[var(--bg-tertiary)]">
+      <button onClick={onProfile} title="ver perfil" className="flex-shrink-0">
+        <Avatar username={u.username} avatar={u.avatar} size="sm" />
+      </button>
+      <button onClick={onProfile} className="flex-1 min-w-0 text-left">
+        <div className="text-sm font-mono truncate" style={{ color: 'var(--blue)' }}>{u.username}</div>
+        <div className="text-[10px] font-mono truncate" style={{ color: 'var(--text-secondary)' }}>{u.role}</div>
+      </button>
+      <button
+        onClick={onDm}
+        title="enviar mensagem"
+        className="flex-shrink-0 transition-colors text-[var(--text-secondary)] hover:text-[var(--blue)]"
+      >
+        <MessageCircle size={14} />
+      </button>
     </div>
   )
 }
