@@ -111,6 +111,7 @@ export const useCallStore = create<CallStore>((set, get) => ({
 
     socket.on('call-hangup', () => {
       cleanup()
+      playEndSound()
       set({ status: 'ended', error: null })
       setTimeout(() => set({ status: 'idle', peer: null }), 1500)
     })
@@ -231,6 +232,7 @@ export const useCallStore = create<CallStore>((set, get) => ({
     const peer = get().peer
     if (socket && peer) socket.emit('call-hangup', { toId: peer._id })
     cleanup()
+    playEndSound()
     set({ status: 'ended' })
     setTimeout(() => set({ status: 'idle', peer: null }), 800)
   },
@@ -313,6 +315,29 @@ export function startRingtone() {
   } catch (err) {
     console.error('startRingtone:', err)
   }
+}
+
+// Som curto de encerramento de chamada (notas descendo)
+export function playEndSound() {
+  try {
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext
+    const ctx = new Ctx()
+    let t = ctx.currentTime
+    for (const f of [659.25, 440]) {
+      const o = ctx.createOscillator()
+      const g = ctx.createGain()
+      o.connect(g); g.connect(ctx.destination)
+      o.type = 'sine'
+      o.frequency.setValueAtTime(f, t)
+      g.gain.setValueAtTime(0.0001, t)
+      g.gain.exponentialRampToValueAtTime(0.2, t + 0.02)
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18)
+      o.start(t)
+      o.stop(t + 0.2)
+      t += 0.14
+    }
+    setTimeout(() => ctx.close().catch(() => {}), 800)
+  } catch { /* áudio indisponível — ignora */ }
 }
 
 export function stopRingtone() {
