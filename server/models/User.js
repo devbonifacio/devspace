@@ -17,6 +17,8 @@ const userSchema = new mongoose.Schema({
     text:  { type: String, default: '', maxLength: 60 },
     clearAt: { type: Date, default: null }, // auto-clear futuro (não implementado, mas reservado)
   },
+  // Se já recebeu a DM de boas-vindas do bot (evita repetir)
+  botWelcomed: { type: Boolean, default: false },
   // Banimento / suspensão (gerido pelo painel de moderação)
   ban: {
     until:  { type: Date, default: null },   // null = não banido; data futura = banido até

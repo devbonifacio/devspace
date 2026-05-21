@@ -294,6 +294,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
     })
     socket.on('message-reacted', (msg: Message) => get().updateMessageReaction(msg))
 
+    // Notificação do bot (boas-vindas em grupo) — entra com som + badge
+    socket.on('bot-message', ({ title, body, channelId }: { title: string; body: string; channelId?: string }) => {
+      get().pushNotification({ type: 'message', title, body, meta: { channelId } })
+    })
+
     socket.on('group-kicked', ({ groupId }: { groupId: string }) => {
       get().removeGroup(groupId)
       get().pushNotification({

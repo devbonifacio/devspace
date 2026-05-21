@@ -2,7 +2,7 @@ import Message from '../models/Message.js'
 import User from '../models/User.js'
 import Channel from '../models/Channel.js'
 import { isBanned } from '../utils/ban.js'
-import { getBotId } from '../utils/bot.js'
+import { getBotId, getBotUser, welcomeDM } from '../utils/bot.js'
 
 // Extrai @usernames únicos de um conteúdo
 const extractMentions = (text) => {
@@ -79,6 +79,24 @@ export const setupSocket = (io) => {
     if (onlineUsers.get(userId).size === 1) {
       try { await User.findByIdAndUpdate(userId, { status: 'online' }) } catch {}
       io.emit('user-status', { userId, status: 'online' })
+    }
+
+    // Boas-vindas do bot — DM ao vivo na 1ª conexão (dispara som + notificação)
+    try {
+      const me = await User.findById(userId)
+      if (me && me.role !== 'bot' && !me.botWelcomed) {
+        const bot = await getBotUser()
+        const wmsg = await Message.create({
+          author: bot._id, dm: me._id, content: welcomeDM(me.username), type: 'text',
+        })
+        const populated = await Message.findById(wmsg._id)
+          .populate('author', 'username avatar role status')
+        io.to(`user:${userId}`).emit('new-dm', populated)
+        me.botWelcomed = true
+        await me.save()
+      }
+    } catch (e) {
+      console.error('bot welcome:', e.message)
     }
 
     socket.on('join-channel', (channelId) => socket.join(`channel:${channelId}`))

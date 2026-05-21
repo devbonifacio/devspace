@@ -1,10 +1,8 @@
 import express from 'express'
 import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
-import Message from '../models/Message.js'
 import { protect, isOwnerEmail } from '../middleware/auth.js'
 import { isBanned, banMessage } from '../utils/ban.js'
-import { getBotUser, welcomeDM } from '../utils/bot.js'
 import { validatePassword, validateUsername, validateEmail } from '../utils/validation.js'
 
 const router = express.Router()
@@ -44,20 +42,7 @@ router.post('/register', async (req, res) => {
     if (passwordErr) return res.status(400).json({ error: passwordErr })
 
     const user = await User.create({ username: username.trim(), email: email.toLowerCase().trim(), password })
-
-    // DevSpaceBot manda uma DM de boas-vindas pro novo usuário
-    try {
-      const bot = await getBotUser()
-      await Message.create({
-        author: bot._id,
-        dm: user._id,
-        content: welcomeDM(user.username),
-        type: 'text',
-      })
-    } catch (e) {
-      console.error('welcome DM:', e.message)
-    }
-
+    // A DM de boas-vindas do bot é enviada ao vivo na 1ª conexão (ver socket)
     res.json({ token: signToken(user._id), user: sanitize(user) })
   } catch (err) {
     // Erro de duplicate key do Mongo (username/email já em uso)

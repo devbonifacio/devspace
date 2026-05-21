@@ -105,6 +105,17 @@ router.post('/join', protect, async (req, res) => {
           })
           const botPop = await botMsg.populate('author', 'username role avatar status')
           io.to(`channel:${geral._id}`).emit('new-message', botPop)
+
+          // Notifica os membros do grupo (menos quem entrou) — dá som + notificação
+          populated.members?.forEach(m => {
+            const mid = (m._id || m).toString()
+            if (mid === req.user._id.toString()) return
+            io.to(`user:${mid}`).emit('bot-message', {
+              title: `DevSpaceBot · #${geral.name}`,
+              body: `deu as boas-vindas a @${req.user.username} no grupo ${group.name}`,
+              channelId: geral._id.toString(),
+            })
+          })
         } catch (e) {
           console.error('welcome grupo:', e.message)
         }
