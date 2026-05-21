@@ -50,15 +50,19 @@ export default function ModerationPanel({ onClose }: { onClose: () => void }) {
   const [botName, setBotName] = useState('')
   const [botBio, setBotBio] = useState('')
   const [botAvatar, setBotAvatar] = useState('')
+  const [botBanner, setBotBanner] = useState('')
   const [botSaving, setBotSaving] = useState(false)
   const [botUploading, setBotUploading] = useState(false)
+  const [botBannerUploading, setBotBannerUploading] = useState(false)
   const botFileRef = useRef<HTMLInputElement>(null)
+  const botBannerRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (botUser) {
       setBotName(botUser.username)
       setBotBio(botUser.bio || '')
       setBotAvatar(botUser.avatar || '')
+      setBotBanner(botUser.banner || '')
     }
   }, [botUser])
 
@@ -76,11 +80,27 @@ export default function ModerationPanel({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const handleBotBanner = async (file?: File) => {
+    if (!file) return
+    setBotBannerUploading(true)
+    setError('')
+    try {
+      const res = await uploadService.upload(file, 'banners')
+      setBotBanner(res.url)
+    } catch (err: any) {
+      setError(err.message || 'Erro no upload')
+    } finally {
+      setBotBannerUploading(false)
+    }
+  }
+
   const saveBot = async () => {
     setBotSaving(true)
     setError('')
     try {
-      const updated = await adminService.updateBot({ username: botName.trim(), avatar: botAvatar, bio: botBio })
+      const updated = await adminService.updateBot({
+        username: botName.trim(), avatar: botAvatar, banner: botBanner, bio: botBio,
+      })
       setBotUser(updated)
     } catch (err: any) {
       setError(err.response?.data?.error || 'Erro ao salvar bot')
@@ -172,6 +192,38 @@ export default function ModerationPanel({ onClose }: { onClose: () => void }) {
             <div className="text-[10px] font-mono uppercase tracking-widest mb-2" style={{ color: 'var(--text-secondary)' }}>
               configurar DevSpaceBot
             </div>
+
+            {/* Banner do bot */}
+            <button
+              onClick={() => botBannerRef.current?.click()}
+              disabled={botBannerUploading}
+              title="trocar banner do bot"
+              className="relative w-full h-14 rounded overflow-hidden group block mb-2"
+              style={{
+                background: botBanner ? undefined : 'linear-gradient(135deg, var(--accent), var(--accent-hover))',
+                border: '1px solid var(--border)',
+              }}
+            >
+              {botBanner && <img src={botBanner} alt="banner" className="w-full h-full object-cover" />}
+              <span
+                className={`absolute inset-0 flex items-center justify-center gap-1.5 text-[11px] font-mono transition-opacity ${
+                  botBannerUploading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
+                style={{ background: 'rgba(0,0,0,0.5)', color: '#fff' }}
+              >
+                {botBannerUploading
+                  ? <><Loader2 size={12} className="animate-spin" /> enviando...</>
+                  : <><Camera size={12} /> trocar banner</>}
+              </span>
+            </button>
+            <input
+              ref={botBannerRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => handleBotBanner(e.target.files?.[0])}
+            />
+
             <div className="flex gap-3">
               <button
                 onClick={() => botFileRef.current?.click()}
@@ -209,7 +261,7 @@ export default function ModerationPanel({ onClose }: { onClose: () => void }) {
             </div>
             <button
               onClick={saveBot}
-              disabled={botSaving || botUploading}
+              disabled={botSaving || botUploading || botBannerUploading}
               className="w-full mt-2 py-1.5 text-xs font-mono rounded flex items-center justify-center gap-1.5 disabled:opacity-40"
               style={{ background: 'var(--accent)', color: '#fff' }}
             >

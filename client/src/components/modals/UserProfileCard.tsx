@@ -34,9 +34,11 @@ export default function UserProfileCard() {
   const close = () => openProfile(null)
   const isMe = me?._id === viewingProfileId
 
-  // Status efetivo: online se está na lista de online; senão o status salvo
+  // Status efetivo: o bot está sempre online; senão usa a lista de online
   const liveStatus = profile
-    ? (onlineUsers.has(profile._id) ? (profile.status === 'away' ? 'away' : 'online') : 'offline')
+    ? (profile.role === 'bot'
+        ? 'online'
+        : (onlineUsers.has(profile._id) ? (profile.status === 'away' ? 'away' : 'online') : 'offline'))
     : 'offline'
   const statusInfo = STATUS_INFO[liveStatus]
   const cs = profile ? (customStatuses.get(profile._id) || profile.customStatus) : null

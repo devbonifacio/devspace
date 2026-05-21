@@ -234,7 +234,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       transports: ['websocket', 'polling']
     })
 
-    socket.on('connect', () => set({ socketConnected: true }))
+    socket.on('connect', () => {
+      set({ socketConnected: true })
+      // Pede a lista de online assim que conecta (e a cada reconexão)
+      socket.emit('get-online')
+    })
     socket.on('disconnect', () => set({ socketConnected: false }))
 
     // Registra handlers de signaling de chamadas (1 vez por conexão)

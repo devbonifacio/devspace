@@ -44,7 +44,7 @@ export const adminService = {
     await api.post(`/api/admin/users/${userId}/unban`)
   },
 
-  async updateBot(data: { username?: string; avatar?: string; bio?: string }): Promise<User> {
+  async updateBot(data: { username?: string; avatar?: string; banner?: string; bio?: string }): Promise<User> {
     const r = await api.patch('/api/admin/bot', data)
     return r.data
   },

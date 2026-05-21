@@ -43,7 +43,7 @@ router.get('/bot', protect, async (_req, res) => {
   try {
     const bot = await getBotUser()
     res.json({
-      _id: bot._id, username: bot.username, avatar: bot.avatar,
+      _id: bot._id, username: bot.username, avatar: bot.avatar, banner: bot.banner,
       bio: bot.bio, role: bot.role, status: bot.status,
     })
   } catch (err) {

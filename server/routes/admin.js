@@ -111,13 +111,14 @@ router.post('/users/:id/unban', async (req, res) => {
 router.patch('/bot', async (req, res) => {
   try {
     const bot = await getBotUser()
-    const { username, avatar, bio } = req.body
+    const { username, avatar, banner, bio } = req.body
     if (typeof username === 'string' && username.trim()) bot.username = username.trim().slice(0, 30)
     if (typeof avatar === 'string') bot.avatar = avatar
+    if (typeof banner === 'string') bot.banner = banner
     if (typeof bio === 'string') bot.bio = bio.slice(0, 300)
     await bot.save()
     res.json({
-      _id: bot._id, username: bot.username, avatar: bot.avatar,
+      _id: bot._id, username: bot.username, avatar: bot.avatar, banner: bot.banner,
       bio: bot.bio, role: bot.role, status: bot.status,
     })
   } catch (err) {

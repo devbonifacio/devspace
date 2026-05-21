@@ -4,6 +4,10 @@ import User from '../models/User.js'
 export const BOT_EMAIL = 'bot@devspace.system'
 export const BOT_USERNAME = 'DevSpaceBot'
 
+// Cache do _id do bot — usado pra marcá-lo sempre online sem bater no banco.
+let cachedBotId = null
+export const getBotId = () => cachedBotId
+
 // Garante que a conta-bot existe no banco. Idempotente — pode chamar à vontade.
 export const getBotUser = async () => {
   let bot = await User.findOne({ email: BOT_EMAIL })
@@ -18,6 +22,7 @@ export const getBotUser = async () => {
       bio: 'Bot oficial do DevSpace. Tô aqui pra dar as boas-vindas! 🤖',
     })
   }
+  cachedBotId = bot._id.toString()
   return bot
 }
 

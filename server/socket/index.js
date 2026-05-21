@@ -2,6 +2,7 @@ import Message from '../models/Message.js'
 import User from '../models/User.js'
 import Channel from '../models/Channel.js'
 import { isBanned } from '../utils/ban.js'
+import { getBotId } from '../utils/bot.js'
 
 // Extrai @usernames únicos de um conteúdo
 const extractMentions = (text) => {
@@ -41,6 +42,14 @@ const notifyMentions = async (io, populated, authorId, channelId) => {
 export const setupSocket = (io) => {
   const onlineUsers = new Map() // userId → Set<socketId>
 
+  // Lista de quem está online — o bot entra sempre (fica online 24/7)
+  const onlineSnapshot = () => {
+    const ids = [...onlineUsers.keys()]
+    const botId = getBotId()
+    if (botId && !ids.includes(botId)) ids.push(botId)
+    return ids
+  }
+
   io.on('connection', async (socket) => {
     const userId = socket.handshake.auth?.userId
     if (!userId) return
@@ -62,7 +71,10 @@ export const setupSocket = (io) => {
     socket.join(`user:${userId}`)
 
     // Snapshot: manda pra ESTE socket quem já está online agora
-    socket.emit('online-users', [...onlineUsers.keys()])
+    socket.emit('online-users', onlineSnapshot())
+
+    // O cliente também pode pedir a lista explicitamente (à prova de race)
+    socket.on('get-online', () => socket.emit('online-users', onlineSnapshot()))
 
     if (onlineUsers.get(userId).size === 1) {
       try { await User.findByIdAndUpdate(userId, { status: 'online' }) } catch {}
