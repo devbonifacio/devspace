@@ -22,14 +22,18 @@ export default function UserProfileModal({ onClose }: { onClose: () => void }) {
   const [bio, setBio] = useState(user?.bio || '')
   const [githubUrl, setGitBranchUrl] = useState(user?.githubUrl || '')
   const [avatar, setAvatar] = useState(user?.avatar || '')
+  const [banner, setBanner] = useState(user?.banner || '')
   const [emoji, setEmoji] = useState(user?.customStatus?.emoji || '')
   const [statusText, setStatusText] = useState(user?.customStatus?.text || '')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadPct, setUploadPct] = useState(0)
   const [uploadErr, setUploadErr] = useState('')
+  const [bannerUploading, setBannerUploading] = useState(false)
+  const [bannerPct, setBannerPct] = useState(0)
   const [saved, setSaved] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const bannerInputRef = useRef<HTMLInputElement>(null)
 
   const handleAvatarChange = async (file: File | undefined) => {
     if (!file) return
@@ -46,11 +50,26 @@ export default function UserProfileModal({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const handleBannerChange = async (file: File | undefined) => {
+    if (!file) return
+    setUploadErr('')
+    setBannerUploading(true)
+    setBannerPct(0)
+    try {
+      const res = await uploadService.upload(file, 'banners', pct => setBannerPct(pct))
+      setBanner(res.url)
+    } catch (err: any) {
+      setUploadErr(err.message || 'Erro no upload')
+    } finally {
+      setBannerUploading(false)
+    }
+  }
+
   const handle = async () => {
     if (!token) return
     setLoading(true)
     try {
-      await api.patch('/api/users/profile', { bio, githubUrl, avatar })
+      await api.patch('/api/users/profile', { bio, githubUrl, avatar, banner })
       const updated = await userService.setCustomStatus(emoji, statusText)
       setAuth(updated, token)
       setSaved(true)
@@ -84,6 +103,51 @@ export default function UserProfileModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} style={{ color: 'var(--text-secondary)' }} className="hover:text-white"><X size={16} /></button>
         </div>
         <div className="p-5 space-y-4">
+          {/* Banner do perfil */}
+          <div>
+            <label className="text-[11px] font-mono mb-1 block" style={{ color: 'var(--text-secondary)' }}>
+              banner do perfil
+            </label>
+            <button
+              onClick={() => bannerInputRef.current?.click()}
+              disabled={bannerUploading}
+              title="trocar banner"
+              className="relative w-full h-24 rounded overflow-hidden group block"
+              style={{
+                background: banner ? undefined : 'linear-gradient(135deg, var(--accent), var(--accent-hover))',
+                border: '1px solid var(--border)',
+              }}
+            >
+              {banner && <img src={banner} alt="banner" className="w-full h-full object-cover" />}
+              <span
+                className={`absolute inset-0 flex items-center justify-center gap-1.5 text-xs font-mono transition-opacity ${
+                  bannerUploading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}
+                style={{ background: 'rgba(0,0,0,0.5)', color: '#fff' }}
+              >
+                {bannerUploading
+                  ? <><Loader2 size={14} className="animate-spin" /> {bannerPct}%</>
+                  : <><Camera size={14} /> trocar banner</>}
+              </span>
+            </button>
+            {banner && !bannerUploading && (
+              <button
+                onClick={() => setBanner('')}
+                className="text-[10px] font-mono mt-1 hover:text-white transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                // remover banner
+              </button>
+            )}
+            <input
+              ref={bannerInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => handleBannerChange(e.target.files?.[0])}
+            />
+          </div>
+
           <div className="flex items-center gap-4">
             <div className="relative group">
               <Avatar username={user?.username || ''} avatar={avatar} size="xl" />

@@ -40,7 +40,7 @@ router.get('/search', protect, async (req, res) => {
 router.get('/:id', protect, async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
-      .select('username avatar bio githubUrl role status customStatus createdAt')
+      .select('username avatar banner bio githubUrl role status customStatus createdAt')
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' })
     res.json(user)
   } catch (err) {
@@ -51,11 +51,12 @@ router.get('/:id', protect, async (req, res) => {
 // PATCH /api/users/profile — atualiza bio, githubUrl, avatar
 router.patch('/profile', protect, async (req, res) => {
   try {
-    const { bio, githubUrl, avatar } = req.body
+    const { bio, githubUrl, avatar, banner } = req.body
     const updates = {}
     if (bio !== undefined) updates.bio = bio
     if (githubUrl !== undefined) updates.githubUrl = githubUrl
     if (avatar !== undefined) updates.avatar = avatar
+    if (banner !== undefined) updates.banner = banner
 
     const user = await User.findByIdAndUpdate(
       req.user._id,

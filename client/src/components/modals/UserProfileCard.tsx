@@ -77,12 +77,18 @@ export default function UserProfileCard() {
           </div>
         ) : profile ? (
           <>
-            {/* Banner accent */}
-            <div className="h-16 relative" style={{ background: 'linear-gradient(135deg, var(--accent), var(--accent-hover))' }}>
+            {/* Banner (imagem custom ou gradiente accent) */}
+            <div
+              className="h-20 relative"
+              style={{ background: profile.banner ? 'var(--bg-tertiary)' : 'linear-gradient(135deg, var(--accent), var(--accent-hover))' }}
+            >
+              {profile.banner && (
+                <img src={profile.banner} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              )}
               <button
                 onClick={close}
-                className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center rounded transition-colors"
-                style={{ background: 'rgba(0,0,0,0.3)', color: '#fff' }}
+                className="absolute top-2 right-2 z-10 w-6 h-6 flex items-center justify-center rounded transition-colors"
+                style={{ background: 'rgba(0,0,0,0.4)', color: '#fff' }}
               >
                 <X size={13} />
               </button>

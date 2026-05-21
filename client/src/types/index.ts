@@ -9,6 +9,7 @@ export interface User {
   username: string
   email: string
   avatar: string
+  banner?: string
   bio: string
   githubUrl: string
   role: 'dev' | 'senior' | 'admin'

@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
   email:      { type: String, required: true, unique: true },
   password:   { type: String, required: true },
   avatar:     { type: String, default: '' },
+  banner:     { type: String, default: '' },
   bio:        { type: String, default: '' },
   githubUrl:  { type: String, default: '' },
   role:       { type: String, default: 'dev' }, // dev, senior, admin

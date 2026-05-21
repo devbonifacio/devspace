@@ -1,4 +1,5 @@
 import api from './api'
+import { assertImageSafe } from './moderation'
 
 interface UploadResult {
   url: string
@@ -23,15 +24,19 @@ const ALLOWED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 export const uploadService = {
   /**
    * Faz upload direto pro Cloudinary com assinatura curta vinda do server.
-   * @param folder 'avatars' | 'chat'
+   * Toda imagem passa por moderação NSFW no navegador antes de subir.
+   * @param folder 'avatars' | 'banners' | 'chat'
    */
-  async upload(file: File, folder: 'avatars' | 'chat', onProgress?: (pct: number) => void): Promise<UploadResult> {
+  async upload(file: File, folder: 'avatars' | 'banners' | 'chat', onProgress?: (pct: number) => void): Promise<UploadResult> {
     if (!ALLOWED.includes(file.type)) {
       throw new Error('Tipo de imagem inválido (jpg, png, gif, webp)')
     }
     if (file.size > MAX_BYTES) {
       throw new Error('Imagem muito grande (máx 5 MB)')
     }
+
+    // Moderação: bloqueia conteúdo impróprio antes de qualquer upload
+    await assertImageSafe(file)
 
     const sig: SignatureResp = await api.get(`/api/uploads/signature?folder=${folder}`).then(r => r.data)
 

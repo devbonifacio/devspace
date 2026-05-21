@@ -26,7 +26,12 @@ router.get('/signature', protect, async (req, res) => {
       return res.status(503).json({ error: 'Upload não configurado no servidor' })
     }
 
-    const folder = req.query.folder === 'avatars' ? 'devspace/avatars' : 'devspace/chat'
+    const FOLDERS = {
+      avatars: 'devspace/avatars',
+      banners: 'devspace/banners',
+      chat:    'devspace/chat',
+    }
+    const folder = FOLDERS[req.query.folder] || FOLDERS.chat
     const timestamp = Math.round(Date.now() / 1000)
 
     // Tags pro Cloudinary (útil pra auditoria/cleanup futuro)
