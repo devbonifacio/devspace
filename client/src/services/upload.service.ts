@@ -1,5 +1,5 @@
 import api from './api'
-import { assertImageSafe } from './moderation'
+import { assertImageSafe, UnsafeImageError } from './moderation'
 
 interface UploadResult {
   url: string
@@ -16,6 +16,14 @@ interface SignatureResp {
   signature: string
   folder: string
   tags: string
+  moderation: string
+}
+
+// Detecta se o Cloudinary reprovou a imagem na moderação do servidor
+function moderationRejected(data: any): boolean {
+  if (data?.moderation_status === 'rejected') return true
+  const list = Array.isArray(data?.moderation) ? data.moderation : []
+  return list.some((m: any) => m?.status === 'rejected')
 }
 
 const MAX_BYTES = 5 * 1024 * 1024 // 5 MB
@@ -47,6 +55,8 @@ export const uploadService = {
     fd.append('signature', sig.signature)
     fd.append('folder', sig.folder)
     fd.append('tags', sig.tags)
+    // Param de moderação precisa ir junto (faz parte da assinatura)
+    if (sig.moderation) fd.append('moderation', sig.moderation)
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
@@ -57,6 +67,16 @@ export const uploadService = {
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           const data = JSON.parse(xhr.responseText)
+
+          // Moderação do servidor reprovou → apaga o asset e bloqueia
+          if (moderationRejected(data)) {
+            if (data.public_id) {
+              api.post('/api/uploads/destroy', { publicId: data.public_id }).catch(() => {})
+            }
+            reject(new UnsafeImageError())
+            return
+          }
+
           resolve({
             url: data.secure_url,
             width: data.width,
