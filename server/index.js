@@ -15,6 +15,7 @@ import userRoutes from './routes/users.js'
 import uploadRoutes from './routes/uploads.js'
 import bookmarkRoutes from './routes/bookmarks.js'
 import adminRoutes from './routes/admin.js'
+import githubRoutes from './routes/github.js'
 import { setupSocket } from './socket/index.js'
 import { getBotUser } from './utils/bot.js'
 
@@ -95,6 +96,7 @@ app.use('/api/users', userRoutes)
 app.use('/api/uploads', uploadRoutes)
 app.use('/api/bookmarks', bookmarkRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/github', githubRoutes)
 
 // 404 das rotas /api/*
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint não encontrado' }))

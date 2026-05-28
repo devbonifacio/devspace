@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import TitleBar from './TitleBar'
 import StatusBar from './StatusBar'
 import ActivityBar, { type View } from './ActivityBar'
@@ -30,6 +30,7 @@ export default function AppShell() {
   const [showPalette, setShowPalette] = useState(false)
   const [bootLoading, setBootLoading] = useState(false)
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const {
     user, token, groups, activeGroup, notifications,
@@ -85,6 +86,33 @@ export default function AppShell() {
     loadBot()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?._id])
+
+  // Volta do OAuth do GitHub — ?github=connected ou ?github=error&reason=
+  useEffect(() => {
+    const status = searchParams.get('github')
+    if (!status || !user || !token) return
+    const next = new URLSearchParams(searchParams)
+    next.delete('github')
+    next.delete('reason')
+    setSearchParams(next, { replace: true })
+
+    if (status === 'connected') {
+      useAppStore.getState().pushNotification({
+        type: 'system',
+        title: 'GitHub conectado!',
+        body: 'Tua conta foi linkada — agora dá pra compartilhar repos privados.',
+      })
+      // Recarrega o user pra refletir o campo github.connected
+      authService.me().then(({ user: u }) => setAuth(u, token)).catch(() => {})
+    } else if (status === 'error') {
+      useAppStore.getState().pushNotification({
+        type: 'system',
+        title: 'Falha ao conectar GitHub',
+        body: searchParams.get('reason') || 'Tenta de novo no perfil.',
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id, searchParams])
 
   // Som + notificação de desktop ao receber notif nova
   const [lastNotifId, setLastNotifId] = useState<string | null>(null)

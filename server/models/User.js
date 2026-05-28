@@ -22,6 +22,14 @@ const userSchema = new mongoose.Schema({
   // Redefinição de senha — guarda o HASH do token, nunca o token cru
   resetToken:       { type: String, default: null },
   resetTokenExpiry: { type: Date, default: null },
+  // GitHub OAuth — conta linkada (token sempre encriptado)
+  github: {
+    id:          { type: String, default: null },
+    username:    { type: String, default: '' },
+    avatar:      { type: String, default: '' },
+    token:       { type: String, default: '' },   // encriptado (AES-256-GCM)
+    connectedAt: { type: Date, default: null },
+  },
   // Banimento / suspensão (gerido pelo painel de moderação)
   ban: {
     until:  { type: Date, default: null },   // null = não banido; data futura = banido até

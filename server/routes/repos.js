@@ -2,6 +2,7 @@ import express from 'express'
 import axios from 'axios'
 import Group from '../models/Group.js'
 import { protect } from '../middleware/auth.js'
+import { decrypt } from '../utils/crypto.js'
 
 const router = express.Router()
 
@@ -21,9 +22,16 @@ router.get('/preview', protect, async (req, res) => {
     const [, owner, repoRaw] = match
     const repo = repoRaw.replace(/\.git$/, '')
 
+    // Prefere o token OAuth do usuário (cobre repos privados que ele tem acesso).
+    // Cai pro token global do servidor (público) se o usuário não conectou.
+    const userToken = req.user?.github?.token ? decrypt(req.user.github.token) : ''
+    const headers = userToken
+      ? { Authorization: `Bearer ${userToken}` }
+      : githubHeaders()
+
     const { data } = await axios.get(
       `https://api.github.com/repos/${owner}/${repo}`,
-      { headers: githubHeaders(), timeout: 8000 }
+      { headers, timeout: 8000 }
     )
 
     res.json({

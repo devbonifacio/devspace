@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react'
-import { X, GitBranch, Save, Smile, Camera, Loader2 } from 'lucide-react'
+import { X, GitBranch, Save, Smile, Camera, Loader2, Github, Unlink } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
 import { userService } from '../../services/user.service'
 import { uploadService } from '../../services/upload.service'
+import { githubService } from '../../services/github.service'
+import { authService } from '../../services/auth.service'
 import Avatar from '../ui/Avatar'
 import api from '../../services/api'
 
@@ -34,6 +36,34 @@ export default function UserProfileModal({ onClose }: { onClose: () => void }) {
   const [bannerPct, setBannerPct] = useState(0)
   const [saved, setSaved] = useState(false)
   const [saveErr, setSaveErr] = useState('')
+  const [ghBusy, setGhBusy] = useState(false)
+
+  const handleGithubConnect = async () => {
+    setGhBusy(true)
+    setSaveErr('')
+    try {
+      const { url } = await githubService.start()
+      window.location.href = url
+    } catch (err: any) {
+      setSaveErr(err.response?.data?.error || 'Erro ao iniciar OAuth do GitHub')
+      setGhBusy(false)
+    }
+  }
+
+  const handleGithubDisconnect = async () => {
+    if (!confirm('Desconectar a conta do GitHub?')) return
+    setGhBusy(true)
+    setSaveErr('')
+    try {
+      await githubService.disconnect()
+      const data = await authService.me()
+      if (token) setAuth(data.user, token)
+    } catch (err: any) {
+      setSaveErr(err.response?.data?.error || 'Erro ao desconectar')
+    } finally {
+      setGhBusy(false)
+    }
+  }
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bannerInputRef = useRef<HTMLInputElement>(null)
 
@@ -263,16 +293,56 @@ export default function UserProfileModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
-            <label className="text-[11px] font-mono mb-1 block" style={{ color: 'var(--text-secondary)' }}>github url</label>
-            <div className="flex items-center gap-2 px-3 py-2 rounded" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
-              <GitBranch size={13} style={{ color: 'var(--text-secondary)' }} />
-              <input
-                value={githubUrl}
-                onChange={e => setGitBranchUrl(e.target.value)}
-                placeholder="https://github.com/seu-user"
-                className="flex-1 bg-transparent outline-none text-sm font-mono"
-                style={{ color: 'var(--text-primary)' }}
-              />
+            <label className="text-[11px] font-mono mb-1 block" style={{ color: 'var(--text-secondary)' }}>github</label>
+            {user?.github?.connected ? (
+              <div className="flex items-center gap-2 px-3 py-2 rounded"
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+                {user.github.avatar && (
+                  <img src={user.github.avatar} alt="" className="w-5 h-5 rounded-full" />
+                )}
+                <span className="flex-1 text-sm font-mono truncate" style={{ color: 'var(--text-primary)' }}>
+                  @{user.github.username}
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-px rounded"
+                  style={{ background: '#1b4721', color: 'var(--green)', border: '1px solid var(--green)' }}>
+                  ✓ conectado
+                </span>
+                <button
+                  onClick={handleGithubDisconnect}
+                  disabled={ghBusy}
+                  title="desconectar GitHub"
+                  className="hover:text-red-400 disabled:opacity-40"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  {ghBusy ? <Loader2 size={13} className="animate-spin" /> : <Unlink size={13} />}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleGithubConnect}
+                disabled={ghBusy}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded text-sm font-mono disabled:opacity-50"
+                style={{ background: '#24292e', color: '#fff', border: '1px solid #444' }}
+              >
+                {ghBusy ? <Loader2 size={13} className="animate-spin" /> : <Github size={14} />}
+                conectar com GitHub
+              </button>
+            )}
+
+            <div className="mt-2">
+              <label className="text-[10px] font-mono mb-1 block" style={{ color: 'var(--comment)' }}>
+                // ou link manual (opcional)
+              </label>
+              <div className="flex items-center gap-2 px-3 py-2 rounded" style={{ background: 'var(--bg-input)', border: '1px solid var(--border)' }}>
+                <GitBranch size={13} style={{ color: 'var(--text-secondary)' }} />
+                <input
+                  value={githubUrl}
+                  onChange={e => setGitBranchUrl(e.target.value)}
+                  placeholder="https://github.com/seu-user"
+                  className="flex-1 bg-transparent outline-none text-sm font-mono"
+                  style={{ color: 'var(--text-primary)' }}
+                />
+              </div>
             </div>
           </div>
 

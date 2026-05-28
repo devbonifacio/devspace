@@ -18,6 +18,11 @@ export interface User {
   groups: string[]
   createdAt?: string
   isOwner?: boolean
+  github?: {
+    connected: boolean
+    username: string
+    avatar: string
+  }
 }
 
 export type PermissionScope = 'all' | 'admins'

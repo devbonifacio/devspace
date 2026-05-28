@@ -25,6 +25,11 @@ const sanitize = (user) => ({
   customStatus: user.customStatus,
   groups: user.groups,
   isOwner: isOwnerEmail(user.email),
+  github: {
+    connected: !!user.github?.token,
+    username:  user.github?.username || '',
+    avatar:    user.github?.avatar || '',
+  },
 })
 
 router.post('/register', async (req, res) => {
